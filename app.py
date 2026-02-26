@@ -1,383 +1,731 @@
 """
 Kartu Pintar - Sistem Kartu Tanda Anggota Digital
 TNI Angkatan Darat - Poltekkad
-Flask Application
+Flask Application with MySQL Backend
 """
 
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from functools import wraps
-import json
-import os
 from datetime import datetime
+import os
+import uuid
 
-app = Flask(__name__)
-app.secret_key = 'kartu-pintar-secret-key-poltekkad-2025'
+from config import config_map
+from models import db, User, Anggota, Transaksi, LokasiHistory, MenuKantin
 
-# ============================================================
-# DUMMY DATA (Replace with database in production)
-# ============================================================
 
-USERS = {
-    'admin': {
-        'password': 'admin123',
-        'role': 'admin',
-        'nama': 'Administrator Poltekkad',
-    },
-    'user1': {
-        'password': 'user123',
-        'role': 'user',
-        'nama': 'Serda Budi Santoso',
-    }
-}
+def create_app(config_name=None):
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
+    app = Flask(__name__)
+    app.config.from_object(config_map.get(config_name, config_map['default']))
+    os.makedirs(app.config.get('UPLOAD_FOLDER', 'static/uploads'), exist_ok=True)
+    db.init_app(app)
+    register_filters(app)
+    register_context_processors(app)
+    register_routes(app)
+    register_api_routes(app)
+    register_error_handlers(app)
+    return app
 
-ANGGOTA_DATA = [
-    {
-        'id': 'KP-2025-001',
-        'nrp': '21250001',
-        'nama': 'Serda Budi Santoso',
-        'pangkat': 'Sersan Dua',
-        'satuan': 'Poltekkad',
-        'jabatan': 'Taruna Tingkat III',
-        'jurusan': 'Teknik Elektronika',
-        'tempat_lahir': 'Bandung',
-        'tanggal_lahir': '15 Maret 2002',
-        'golongan_darah': 'O',
-        'agama': 'Islam',
-        'alamat': 'Jl. Gatot Subroto No.96, Bandung',
-        'foto': '/static/img/avatar-default.svg',
-        'nfc_uid': 'A1B2C3D4',
-        'qr_data': 'KP-2025-001',
-        'saldo': 750000,
-        'status_kartu': 'Aktif',
-        'lokasi_terakhir': {'lat': -6.8927, 'lng': 107.6100, 'waktu': '2025-02-26 08:30:00', 'lokasi': 'Kantin Poltekkad'},
-    },
-    {
-        'id': 'KP-2025-002',
-        'nrp': '21250002',
-        'nama': 'Praka Andi Wijaya',
-        'pangkat': 'Prajurit Kepala',
-        'satuan': 'Poltekkad',
-        'jabatan': 'Taruna Tingkat II',
-        'jurusan': 'Teknik Mesin',
-        'tempat_lahir': 'Surabaya',
-        'tanggal_lahir': '22 Juli 2003',
-        'golongan_darah': 'A',
-        'agama': 'Islam',
-        'alamat': 'Jl. Pahlawan No.12, Surabaya',
-        'foto': '/static/img/avatar-default.svg',
-        'nfc_uid': 'E5F6G7H8',
-        'qr_data': 'KP-2025-002',
-        'saldo': 520000,
-        'status_kartu': 'Aktif',
-        'lokasi_terakhir': {'lat': -6.8930, 'lng': 107.6105, 'waktu': '2025-02-26 09:15:00', 'lokasi': 'Gedung Utama Poltekkad'},
-    },
-    {
-        'id': 'KP-2025-003',
-        'nrp': '21250003',
-        'nama': 'Pratu Rizki Firmansyah',
-        'pangkat': 'Prajurit Satu',
-        'satuan': 'Poltekkad',
-        'jabatan': 'Taruna Tingkat I',
-        'jurusan': 'Teknik Informatika',
-        'tempat_lahir': 'Jakarta',
-        'tanggal_lahir': '10 Januari 2004',
-        'golongan_darah': 'B',
-        'agama': 'Kristen',
-        'alamat': 'Jl. Merdeka No.45, Jakarta Selatan',
-        'foto': '/static/img/avatar-default.svg',
-        'nfc_uid': 'I9J0K1L2',
-        'qr_data': 'KP-2025-003',
-        'saldo': 310000,
-        'status_kartu': 'Aktif',
-        'lokasi_terakhir': {'lat': -6.8925, 'lng': 107.6098, 'waktu': '2025-02-26 07:45:00', 'lokasi': 'Asrama Poltekkad'},
-    },
-    {
-        'id': 'KP-2025-004',
-        'nrp': '21250004',
-        'nama': 'Sertu Dewi Kartika',
-        'pangkat': 'Sersan Satu',
-        'satuan': 'Poltekkad',
-        'jabatan': 'Staff Pengajar',
-        'jurusan': 'Teknik Elektronika',
-        'tempat_lahir': 'Yogyakarta',
-        'tanggal_lahir': '05 September 2000',
-        'golongan_darah': 'AB',
-        'agama': 'Islam',
-        'alamat': 'Jl. Malioboro No.78, Yogyakarta',
-        'foto': '/static/img/avatar-default.svg',
-        'nfc_uid': 'M3N4O5P6',
-        'qr_data': 'KP-2025-004',
-        'saldo': 980000,
-        'status_kartu': 'Aktif',
-        'lokasi_terakhir': {'lat': -6.8935, 'lng': 107.6110, 'waktu': '2025-02-26 10:00:00', 'lokasi': 'Ruang Kelas Poltekkad'},
-    },
-    {
-        'id': 'KP-2025-005',
-        'nrp': '21250005',
-        'nama': 'Kopda Agus Prasetyo',
-        'pangkat': 'Kopral Dua',
-        'satuan': 'Poltekkad',
-        'jabatan': 'Taruna Tingkat II',
-        'jurusan': 'Teknik Mesin',
-        'tempat_lahir': 'Semarang',
-        'tanggal_lahir': '28 November 2003',
-        'golongan_darah': 'O',
-        'agama': 'Islam',
-        'alamat': 'Jl. Pemuda No.33, Semarang',
-        'foto': '/static/img/avatar-default.svg',
-        'nfc_uid': 'Q7R8S9T0',
-        'qr_data': 'KP-2025-005',
-        'saldo': 150000,
-        'status_kartu': 'Hilang',
-        'lokasi_terakhir': {'lat': -6.8940, 'lng': 107.6095, 'waktu': '2025-02-25 16:30:00', 'lokasi': 'Lapangan Upacara Poltekkad'},
-    },
-]
 
-TRANSAKSI_DATA = [
-    {'id': 'TRX-001', 'anggota_id': 'KP-2025-001', 'nama': 'Serda Budi Santoso', 'jenis': 'Pembelian', 'keterangan': 'Makan Siang - Kantin', 'nominal': 25000, 'waktu': '2025-02-26 12:30:00', 'status': 'Berhasil'},
-    {'id': 'TRX-002', 'anggota_id': 'KP-2025-002', 'nama': 'Praka Andi Wijaya', 'jenis': 'Pembelian', 'keterangan': 'Minuman - Kantin', 'nominal': 8000, 'waktu': '2025-02-26 10:15:00', 'status': 'Berhasil'},
-    {'id': 'TRX-003', 'anggota_id': 'KP-2025-001', 'nama': 'Serda Budi Santoso', 'jenis': 'Top Up', 'keterangan': 'Pengisian Saldo', 'nominal': 500000, 'waktu': '2025-02-25 08:00:00', 'status': 'Berhasil'},
-    {'id': 'TRX-004', 'anggota_id': 'KP-2025-003', 'nama': 'Pratu Rizki Firmansyah', 'jenis': 'Pembelian', 'keterangan': 'Snack - Kantin', 'nominal': 15000, 'waktu': '2025-02-26 09:45:00', 'status': 'Berhasil'},
-    {'id': 'TRX-005', 'anggota_id': 'KP-2025-004', 'nama': 'Sertu Dewi Kartika', 'jenis': 'Top Up', 'keterangan': 'Pengisian Saldo', 'nominal': 300000, 'waktu': '2025-02-24 14:00:00', 'status': 'Berhasil'},
-    {'id': 'TRX-006', 'anggota_id': 'KP-2025-005', 'nama': 'Kopda Agus Prasetyo', 'jenis': 'Pembelian', 'keterangan': 'Makan Pagi - Kantin', 'nominal': 20000, 'waktu': '2025-02-26 07:00:00', 'status': 'Gagal'},
-]
+def register_filters(app):
+    @app.template_filter('rupiah')
+    def rupiah_format(value):
+        try:
+            return f"Rp {int(value):,.0f}".replace(",", ".")
+        except (ValueError, TypeError):
+            return "Rp 0"
+
+    @app.template_filter('datetime_format')
+    def datetime_format_filter(value, fmt='%d %b %Y, %H:%M'):
+        if isinstance(value, datetime):
+            return value.strftime(fmt)
+        if isinstance(value, str):
+            try:
+                return datetime.strptime(value, '%Y-%m-%d %H:%M:%S').strftime(fmt)
+            except ValueError:
+                return value
+        return value
+
+
+def register_context_processors(app):
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.now()}
+
 
 # ============================================================
-# AUTH DECORATOR
+# AUTH DECORATORS
 # ============================================================
 
 def login_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Login required'}), 401
             flash('Silakan login terlebih dahulu.', 'warning')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated_function
+    return decorated
+
 
 def admin_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Login required'}), 401
             flash('Silakan login terlebih dahulu.', 'warning')
             return redirect(url_for('login'))
         if session.get('role') != 'admin':
-            flash('Anda tidak memiliki akses ke halaman ini.', 'danger')
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Admin access required'}), 403
+            flash('Anda tidak memiliki akses.', 'danger')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
-    return decorated_function
+    return decorated
+
+
+def generate_trx_id():
+    return f"TRX-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+
+
+def anggota_to_dict(a, include_lokasi=True):
+    """Helper to convert Anggota ORM object to template-compatible dict"""
+    d = {
+        'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
+        'pangkat': a.pangkat, 'satuan': a.satuan, 'jabatan': a.jabatan,
+        'jurusan': a.jurusan, 'foto': a.foto, 'saldo': a.saldo,
+        'status_kartu': a.status_kartu, 'nfc_uid': a.nfc_uid,
+        'qr_data': a.qr_data, 'tempat_lahir': a.tempat_lahir,
+        'tanggal_lahir': a.tanggal_lahir.strftime('%d %B %Y') if a.tanggal_lahir else '',
+        'golongan_darah': a.golongan_darah, 'agama': a.agama,
+        'alamat': a.alamat, 'no_telepon': a.no_telepon,
+    }
+    if include_lokasi:
+        d['lokasi_terakhir'] = {
+            'lat': a.lokasi_lat, 'lng': a.lokasi_lng,
+            'lokasi': a.lokasi_nama,
+            'waktu': a.lokasi_waktu.strftime('%Y-%m-%d %H:%M:%S') if a.lokasi_waktu else '',
+        }
+    return d
+
+
+def trx_to_dict(t):
+    """Helper to convert Transaksi ORM object to template-compatible dict"""
+    return {
+        'id': t.trx_id,
+        'anggota_id': t.anggota.kartu_id if t.anggota else '',
+        'nama': t.anggota.nama if t.anggota else '',
+        'jenis': t.jenis, 'keterangan': t.keterangan,
+        'nominal': t.nominal,
+        'waktu': t.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'status': t.status,
+    }
+
 
 # ============================================================
-# AUTH ROUTES
+# WEB ROUTES
 # ============================================================
 
-@app.route('/')
-def index():
-    if 'user' in session:
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
+def register_routes(app):
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username', '')
-        password = request.form.get('password', '')
-        if username in USERS and USERS[username]['password'] == password:
-            session['user'] = username
-            session['role'] = USERS[username]['role']
-            session['nama'] = USERS[username]['nama']
-            flash(f'Selamat datang, {USERS[username]["nama"]}!', 'success')
+    @app.route('/')
+    def index():
+        if 'user_id' in session:
             return redirect(url_for('dashboard'))
-        else:
-            flash('Username atau password salah.', 'danger')
-    return render_template('auth/login.html')
+        return redirect(url_for('login'))
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('Anda telah berhasil logout.', 'info')
-    return redirect(url_for('login'))
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if 'user_id' in session:
+            return redirect(url_for('dashboard'))
+        if request.method == 'POST':
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '')
+            user = User.query.filter_by(username=username).first()
+            if user and user.check_password(password):
+                if not user.is_active:
+                    flash('Akun dinonaktifkan. Hubungi administrator.', 'danger')
+                    return render_template('auth/login.html')
+                session.permanent = True
+                session['user_id'] = user.id
+                session['user'] = user.username
+                session['role'] = user.role
+                session['nama'] = user.nama
+                session['anggota_id'] = user.anggota_id
+                flash(f'Selamat datang, {user.nama}!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Username atau password salah.', 'danger')
+        return render_template('auth/login.html')
 
-# ============================================================
-# DASHBOARD
-# ============================================================
+    @app.route('/logout')
+    def logout():
+        session.clear()
+        flash('Anda telah berhasil logout.', 'info')
+        return redirect(url_for('login'))
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    total_anggota = len(ANGGOTA_DATA)
-    kartu_aktif = len([a for a in ANGGOTA_DATA if a['status_kartu'] == 'Aktif'])
-    kartu_hilang = len([a for a in ANGGOTA_DATA if a['status_kartu'] == 'Hilang'])
-    total_saldo = sum(a['saldo'] for a in ANGGOTA_DATA)
-    total_transaksi = len(TRANSAKSI_DATA)
-    transaksi_terbaru = sorted(TRANSAKSI_DATA, key=lambda x: x['waktu'], reverse=True)[:5]
+    # --- DASHBOARD ---
 
-    return render_template('dashboard.html',
-        total_anggota=total_anggota,
-        kartu_aktif=kartu_aktif,
-        kartu_hilang=kartu_hilang,
-        total_saldo=total_saldo,
-        total_transaksi=total_transaksi,
-        transaksi_terbaru=transaksi_terbaru,
-        anggota_data=ANGGOTA_DATA[:5]
-    )
+    @app.route('/dashboard')
+    @login_required
+    def dashboard():
+        total_anggota = Anggota.query.count()
+        kartu_aktif = Anggota.query.filter_by(status_kartu='Aktif').count()
+        kartu_hilang = Anggota.query.filter_by(status_kartu='Hilang').count()
+        total_saldo = db.session.query(db.func.coalesce(db.func.sum(Anggota.saldo), 0)).scalar()
+        total_transaksi = Transaksi.query.count()
+        transaksi_terbaru = Transaksi.query.order_by(Transaksi.created_at.desc()).limit(5).all()
+        anggota_raw = Anggota.query.limit(5).all()
 
-# ============================================================
-# ANGGOTA (Member) ROUTES
-# ============================================================
+        return render_template('dashboard.html',
+            total_anggota=total_anggota, kartu_aktif=kartu_aktif,
+            kartu_hilang=kartu_hilang, total_saldo=total_saldo,
+            total_transaksi=total_transaksi,
+            transaksi_terbaru=[trx_to_dict(t) for t in transaksi_terbaru],
+            anggota_data=[anggota_to_dict(a) for a in anggota_raw],
+        )
 
-@app.route('/anggota')
-@login_required
-def anggota_list():
-    return render_template('anggota_list.html', anggota_data=ANGGOTA_DATA)
+    # --- ANGGOTA ---
 
-@app.route('/anggota/<anggota_id>')
-@login_required
-def anggota_detail(anggota_id):
-    anggota = next((a for a in ANGGOTA_DATA if a['id'] == anggota_id), None)
-    if not anggota:
-        flash('Data anggota tidak ditemukan.', 'danger')
+    @app.route('/anggota')
+    @login_required
+    def anggota_list():
+        search = request.args.get('search', '').strip()
+        status = request.args.get('status', '').strip()
+        query = Anggota.query
+        if search:
+            query = query.filter(db.or_(
+                Anggota.nama.ilike(f'%{search}%'),
+                Anggota.nrp.ilike(f'%{search}%'),
+                Anggota.kartu_id.ilike(f'%{search}%'),
+                Anggota.pangkat.ilike(f'%{search}%'),
+            ))
+        if status:
+            query = query.filter_by(status_kartu=status)
+        all_anggota = query.order_by(Anggota.nama).all()
+        return render_template('anggota_list.html',
+            anggota_data=[anggota_to_dict(a, include_lokasi=False) for a in all_anggota])
+
+    @app.route('/anggota/<anggota_id>')
+    @login_required
+    def anggota_detail(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            flash('Data anggota tidak ditemukan.', 'danger')
+            return redirect(url_for('anggota_list'))
+        trx_raw = Transaksi.query.filter_by(anggota_id=a.id).order_by(Transaksi.created_at.desc()).limit(20).all()
+        return render_template('anggota_detail.html',
+            anggota=anggota_to_dict(a),
+            transaksi=[trx_to_dict(t) for t in trx_raw])
+
+    @app.route('/anggota/tambah', methods=['GET', 'POST'])
+    @admin_required
+    def anggota_tambah():
+        if request.method == 'POST':
+            try:
+                tgl = request.form.get('tanggal_lahir', '')
+                tgl_lahir = datetime.strptime(tgl, '%Y-%m-%d').date() if tgl else None
+
+                nrp = request.form.get('nrp', '').strip()
+                if Anggota.query.filter_by(nrp=nrp).first():
+                    flash('NRP sudah terdaftar!', 'danger')
+                    return render_template('admin/anggota_form.html', mode='tambah')
+
+                count = Anggota.query.count() + 1
+                year = datetime.now().strftime('%Y')
+                kartu_id = f"KP-{year}-{count:03d}"
+                while Anggota.query.filter_by(kartu_id=kartu_id).first():
+                    count += 1
+                    kartu_id = f"KP-{year}-{count:03d}"
+
+                anggota = Anggota(
+                    kartu_id=kartu_id, nrp=nrp,
+                    nama=request.form.get('nama', '').strip(),
+                    pangkat=request.form.get('pangkat', '').strip(),
+                    satuan=request.form.get('satuan', 'Poltekkad').strip(),
+                    jabatan=request.form.get('jabatan', '').strip(),
+                    jurusan=request.form.get('jurusan', '').strip(),
+                    tempat_lahir=request.form.get('tempat_lahir', '').strip(),
+                    tanggal_lahir=tgl_lahir,
+                    golongan_darah=request.form.get('golongan_darah') or None,
+                    agama=request.form.get('agama', '').strip(),
+                    alamat=request.form.get('alamat', '').strip(),
+                    no_telepon=request.form.get('no_telepon', '').strip(),
+                    nfc_uid=request.form.get('nfc_uid', '').strip() or None,
+                    qr_data=kartu_id, saldo=0, status_kartu='Aktif',
+                )
+                db.session.add(anggota)
+                db.session.commit()
+                flash(f'Anggota {anggota.nama} berhasil ditambahkan (ID: {kartu_id})!', 'success')
+                return redirect(url_for('anggota_detail', anggota_id=kartu_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+        return render_template('admin/anggota_form.html', mode='tambah')
+
+    @app.route('/anggota/edit/<anggota_id>', methods=['GET', 'POST'])
+    @admin_required
+    def anggota_edit(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            flash('Data anggota tidak ditemukan.', 'danger')
+            return redirect(url_for('anggota_list'))
+        if request.method == 'POST':
+            try:
+                tgl = request.form.get('tanggal_lahir', '')
+                if tgl:
+                    a.tanggal_lahir = datetime.strptime(tgl, '%Y-%m-%d').date()
+                a.nama = request.form.get('nama', a.nama).strip()
+                a.pangkat = request.form.get('pangkat', a.pangkat).strip()
+                a.satuan = request.form.get('satuan', a.satuan).strip()
+                a.jabatan = request.form.get('jabatan', a.jabatan).strip()
+                a.jurusan = request.form.get('jurusan', a.jurusan).strip()
+                a.tempat_lahir = request.form.get('tempat_lahir', a.tempat_lahir).strip()
+                a.golongan_darah = request.form.get('golongan_darah', a.golongan_darah)
+                a.agama = request.form.get('agama', a.agama).strip()
+                a.alamat = request.form.get('alamat', a.alamat).strip()
+                a.no_telepon = request.form.get('no_telepon', a.no_telepon or '').strip()
+                a.nfc_uid = request.form.get('nfc_uid', a.nfc_uid or '').strip() or a.nfc_uid
+                a.status_kartu = request.form.get('status_kartu', a.status_kartu)
+                db.session.commit()
+                flash('Data anggota berhasil diperbarui!', 'success')
+                return redirect(url_for('anggota_detail', anggota_id=anggota_id))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+
+        anggota = anggota_to_dict(a)
+        # Override tanggal_lahir format for form input
+        anggota['tanggal_lahir'] = a.tanggal_lahir.strftime('%Y-%m-%d') if a.tanggal_lahir else ''
+        return render_template('admin/anggota_form.html', mode='edit', anggota=anggota)
+
+    @app.route('/anggota/delete/<anggota_id>', methods=['POST'])
+    @admin_required
+    def anggota_delete(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            flash('Data anggota tidak ditemukan.', 'danger')
+            return redirect(url_for('anggota_list'))
+        try:
+            Transaksi.query.filter_by(anggota_id=a.id).delete()
+            LokasiHistory.query.filter_by(anggota_id=a.id).delete()
+            User.query.filter_by(anggota_id=a.id).update({'anggota_id': None})
+            db.session.delete(a)
+            db.session.commit()
+            flash(f'Anggota {a.nama} berhasil dihapus.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
         return redirect(url_for('anggota_list'))
-    transaksi = [t for t in TRANSAKSI_DATA if t['anggota_id'] == anggota_id]
-    return render_template('anggota_detail.html', anggota=anggota, transaksi=transaksi)
 
-@app.route('/anggota/tambah', methods=['GET', 'POST'])
-@admin_required
-def anggota_tambah():
-    if request.method == 'POST':
-        flash('Data anggota berhasil ditambahkan! (Demo)', 'success')
-        return redirect(url_for('anggota_list'))
-    return render_template('admin/anggota_form.html', mode='tambah')
+    # --- SCAN NFC & QR ---
 
-@app.route('/anggota/edit/<anggota_id>', methods=['GET', 'POST'])
-@admin_required
-def anggota_edit(anggota_id):
-    anggota = next((a for a in ANGGOTA_DATA if a['id'] == anggota_id), None)
-    if not anggota:
-        flash('Data anggota tidak ditemukan.', 'danger')
-        return redirect(url_for('anggota_list'))
-    if request.method == 'POST':
-        flash('Data anggota berhasil diperbarui! (Demo)', 'success')
-        return redirect(url_for('anggota_detail', anggota_id=anggota_id))
-    return render_template('admin/anggota_form.html', mode='edit', anggota=anggota)
+    @app.route('/scan')
+    @login_required
+    def scan_page():
+        return render_template('scan.html')
+
+    @app.route('/scan/result/<card_id>')
+    @login_required
+    def scan_result(card_id):
+        a = Anggota.query.filter(db.or_(
+            Anggota.qr_data == card_id,
+            Anggota.nfc_uid == card_id,
+            Anggota.kartu_id == card_id,
+        )).first()
+        if not a:
+            flash('Kartu tidak terdaftar dalam sistem.', 'danger')
+            return redirect(url_for('scan_page'))
+
+        a.lokasi_waktu = datetime.now()
+        db.session.add(LokasiHistory(
+            anggota_id=a.id,
+            latitude=a.lokasi_lat or -6.8927,
+            longitude=a.lokasi_lng or 107.6100,
+            lokasi_nama='Scan Point',
+            sumber='QR' if card_id == a.qr_data else 'NFC',
+        ))
+        db.session.commit()
+        return render_template('scan_result.html', anggota=anggota_to_dict(a))
+
+    # --- PEMBAYARAN ---
+
+    @app.route('/pembayaran')
+    @login_required
+    def pembayaran():
+        anggota_raw = Anggota.query.filter_by(status_kartu='Aktif').all()
+        anggota_data = [{
+            'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
+            'pangkat': a.pangkat, 'saldo': a.saldo,
+            'nfc_uid': a.nfc_uid, 'qr_data': a.qr_data, 'foto': a.foto,
+        } for a in anggota_raw]
+        return render_template('pembayaran.html', anggota_data=anggota_data)
+
+    @app.route('/pembayaran/proses', methods=['POST'])
+    @login_required
+    def pembayaran_proses():
+        try:
+            kartu_id = request.form.get('anggota_id', '').strip()
+            nominal = int(request.form.get('nominal', 0))
+            keterangan = request.form.get('keterangan', 'Pembelian di Kantin').strip()
+            metode = request.form.get('metode', 'NFC')
+
+            if nominal <= 0:
+                flash('Nominal harus lebih dari 0.', 'danger')
+                return redirect(url_for('pembayaran'))
+
+            anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+            if not anggota:
+                flash('Anggota tidak ditemukan.', 'danger')
+                return redirect(url_for('pembayaran'))
+            if anggota.status_kartu != 'Aktif':
+                flash(f'Kartu {anggota.nama} tidak aktif.', 'danger')
+                return redirect(url_for('pembayaran'))
+
+            saldo_sebelum = anggota.saldo
+
+            if anggota.saldo < nominal:
+                db.session.add(Transaksi(
+                    trx_id=generate_trx_id(), anggota_id=anggota.id,
+                    jenis='Pembelian', keterangan=keterangan, nominal=nominal,
+                    saldo_sebelum=saldo_sebelum, saldo_sesudah=saldo_sebelum,
+                    status='Gagal', metode=metode, operator_id=session.get('user_id'),
+                ))
+                db.session.commit()
+                flash(f'Saldo tidak cukup! Saldo: Rp {saldo_sebelum:,.0f}'.replace(',', '.'), 'danger')
+                return redirect(url_for('pembayaran'))
+
+            anggota.saldo -= nominal
+            db.session.add(Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Pembelian', keterangan=keterangan, nominal=nominal,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode=metode, operator_id=session.get('user_id'),
+            ))
+            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_lat = -6.8927
+            anggota.lokasi_lng = 107.6100
+            anggota.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=anggota.id, latitude=-6.8927, longitude=107.6100,
+                lokasi_nama='Kantin Poltekkad', sumber=metode,
+            ))
+            db.session.commit()
+            flash(f'Pembayaran berhasil! {anggota.nama} - Rp {nominal:,.0f} | Sisa: Rp {anggota.saldo:,.0f}'.replace(',', '.'), 'success')
+        except ValueError:
+            flash('Nominal tidak valid.', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('pembayaran'))
+
+    # --- TOP UP ---
+
+    @app.route('/topup')
+    @admin_required
+    def topup():
+        anggota_raw = Anggota.query.order_by(Anggota.nama).all()
+        anggota_data = [{
+            'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
+            'pangkat': a.pangkat, 'saldo': a.saldo, 'status_kartu': a.status_kartu,
+        } for a in anggota_raw]
+        return render_template('admin/topup.html', anggota_data=anggota_data)
+
+    @app.route('/topup/proses', methods=['POST'])
+    @admin_required
+    def topup_proses():
+        try:
+            kartu_id = request.form.get('anggota_id', '').strip()
+            nominal = int(request.form.get('nominal', 0))
+            if nominal <= 0:
+                flash('Nominal harus lebih dari 0.', 'danger')
+                return redirect(url_for('topup'))
+            if nominal > 5000000:
+                flash('Maksimal Rp 5.000.000.', 'danger')
+                return redirect(url_for('topup'))
+
+            anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+            if not anggota:
+                flash('Anggota tidak ditemukan.', 'danger')
+                return redirect(url_for('topup'))
+
+            saldo_sebelum = anggota.saldo
+            anggota.saldo += nominal
+            db.session.add(Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Top Up', keterangan='Pengisian Saldo', nominal=nominal,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode='Manual', operator_id=session.get('user_id'),
+            ))
+            db.session.commit()
+            flash(f'Top up berhasil! {anggota.nama} + Rp {nominal:,.0f} | Saldo: Rp {anggota.saldo:,.0f}'.replace(',', '.'), 'success')
+        except ValueError:
+            flash('Nominal tidak valid.', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('topup'))
+
+    # --- LACAK KARTU ---
+
+    @app.route('/lacak')
+    @login_required
+    def lacak_kartu():
+        anggota_raw = Anggota.query.all()
+        anggota_data = [{
+            'id': a.kartu_id, 'nama': a.nama, 'pangkat': a.pangkat,
+            'status_kartu': a.status_kartu, 'nfc_uid': a.nfc_uid,
+            'lokasi_terakhir': {
+                'lat': a.lokasi_lat, 'lng': a.lokasi_lng,
+                'lokasi': a.lokasi_nama,
+                'waktu': a.lokasi_waktu.strftime('%Y-%m-%d %H:%M:%S') if a.lokasi_waktu else '',
+            },
+        } for a in anggota_raw]
+        return render_template('lacak_kartu.html', anggota_data=anggota_data)
+
+    # --- TRANSAKSI ---
+
+    @app.route('/transaksi')
+    @login_required
+    def transaksi():
+        all_trx = Transaksi.query.order_by(Transaksi.created_at.desc()).all()
+        return render_template('transaksi.html',
+            transaksi_data=[trx_to_dict(t) for t in all_trx])
+
 
 # ============================================================
-# SCAN NFC & QR
+# REST API ROUTES (for React Native / AJAX)
 # ============================================================
 
-@app.route('/scan')
-@login_required
-def scan_page():
-    return render_template('scan.html')
+def register_api_routes(app):
 
-@app.route('/scan/result/<card_id>')
-@login_required
-def scan_result(card_id):
-    anggota = next((a for a in ANGGOTA_DATA if a['qr_data'] == card_id or a['nfc_uid'] == card_id), None)
-    if not anggota:
-        flash('Kartu tidak terdaftar dalam sistem.', 'danger')
-        return redirect(url_for('scan_page'))
-    return render_template('scan_result.html', anggota=anggota)
+    @app.route('/api/auth/login', methods=['POST'])
+    def api_login():
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        user = User.query.filter_by(username=data.get('username', '').strip()).first()
+        if user and user.check_password(data.get('password', '')):
+            if not user.is_active:
+                return jsonify({'success': False, 'message': 'Akun dinonaktifkan'}), 403
+            user_data = user.to_dict()
+            if user.anggota:
+                user_data['anggota'] = user.anggota.to_dict()
+            return jsonify({'success': True, 'data': user_data})
+        return jsonify({'success': False, 'message': 'Username atau password salah'}), 401
+
+    @app.route('/api/anggota', methods=['GET'])
+    @login_required
+    def api_anggota_list():
+        search = request.args.get('search', '').strip()
+        query = Anggota.query
+        if search:
+            query = query.filter(db.or_(
+                Anggota.nama.ilike(f'%{search}%'),
+                Anggota.nrp.ilike(f'%{search}%'),
+                Anggota.kartu_id.ilike(f'%{search}%'),
+            ))
+        result = query.order_by(Anggota.nama).all()
+        return jsonify({'success': True, 'data': [a.to_dict() for a in result]})
+
+    @app.route('/api/anggota/<anggota_id>', methods=['GET'])
+    @login_required
+    def api_anggota_detail(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if a:
+            return jsonify({'success': True, 'data': a.to_dict()})
+        return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+
+    @app.route('/api/scan/nfc/<nfc_uid>', methods=['GET'])
+    @login_required
+    def api_scan_nfc(nfc_uid):
+        a = Anggota.query.filter_by(nfc_uid=nfc_uid).first()
+        if a:
+            a.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=a.id, latitude=a.lokasi_lat or -6.8927,
+                longitude=a.lokasi_lng or 107.6100,
+                lokasi_nama='NFC Scan', sumber='NFC',
+            ))
+            db.session.commit()
+            return jsonify({'success': True, 'data': a.to_dict()})
+        return jsonify({'success': False, 'message': 'Kartu NFC tidak terdaftar'}), 404
+
+    @app.route('/api/scan/qr/<qr_data>', methods=['GET'])
+    @login_required
+    def api_scan_qr(qr_data):
+        a = Anggota.query.filter(
+            db.or_(Anggota.qr_data == qr_data, Anggota.kartu_id == qr_data)
+        ).first()
+        if a:
+            a.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=a.id, latitude=a.lokasi_lat or -6.8927,
+                longitude=a.lokasi_lng or 107.6100,
+                lokasi_nama='QR Scan', sumber='QR',
+            ))
+            db.session.commit()
+            return jsonify({'success': True, 'data': a.to_dict()})
+        return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
+
+    @app.route('/api/pembayaran', methods=['POST'])
+    @login_required
+    def api_pembayaran():
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        kartu_id = data.get('kartu_id', '').strip()
+        nominal = int(data.get('nominal', 0))
+        keterangan = data.get('keterangan', 'Pembelian di Kantin')
+        metode = data.get('metode', 'NFC')
+
+        if nominal <= 0:
+            return jsonify({'success': False, 'message': 'Nominal harus > 0'}), 400
+
+        anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+        if not anggota:
+            return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
+        if anggota.status_kartu != 'Aktif':
+            return jsonify({'success': False, 'message': 'Kartu tidak aktif'}), 400
+        if anggota.saldo < nominal:
+            return jsonify({'success': False, 'message': 'Saldo tidak cukup', 'saldo': anggota.saldo}), 400
+
+        try:
+            saldo_sebelum = anggota.saldo
+            anggota.saldo -= nominal
+            trx = Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Pembelian', keterangan=keterangan, nominal=nominal,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode=metode, operator_id=session.get('user_id'),
+            )
+            db.session.add(trx)
+            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_waktu = datetime.now()
+            db.session.commit()
+            return jsonify({'success': True, 'data': {
+                'trx_id': trx.trx_id, 'nominal': nominal,
+                'saldo_sebelum': saldo_sebelum, 'saldo_sesudah': anggota.saldo,
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/topup', methods=['POST'])
+    @login_required
+    def api_topup():
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        kartu_id = data.get('kartu_id', '').strip()
+        nominal = int(data.get('nominal', 0))
+
+        if nominal <= 0 or nominal > 5000000:
+            return jsonify({'success': False, 'message': 'Nominal: 1 - 5.000.000'}), 400
+
+        anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+        if not anggota:
+            return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
+
+        try:
+            saldo_sebelum = anggota.saldo
+            anggota.saldo += nominal
+            trx = Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Top Up', keterangan='Pengisian Saldo', nominal=nominal,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode='Manual', operator_id=session.get('user_id'),
+            )
+            db.session.add(trx)
+            db.session.commit()
+            return jsonify({'success': True, 'data': {
+                'trx_id': trx.trx_id, 'nominal': nominal,
+                'saldo_sebelum': saldo_sebelum, 'saldo_sesudah': anggota.saldo,
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/transaksi', methods=['GET'])
+    @login_required
+    def api_transaksi_list():
+        kartu_id = request.args.get('kartu_id', '').strip()
+        jenis = request.args.get('jenis', '').strip()
+        limit = request.args.get('limit', 50, type=int)
+        query = Transaksi.query
+        if kartu_id:
+            anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+            if anggota:
+                query = query.filter_by(anggota_id=anggota.id)
+        if jenis:
+            query = query.filter_by(jenis=jenis)
+        result = query.order_by(Transaksi.created_at.desc()).limit(limit).all()
+        return jsonify({'success': True, 'data': [t.to_dict() for t in result]})
+
+    @app.route('/api/lacak/<anggota_id>', methods=['GET'])
+    @login_required
+    def api_lacak(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+        history = LokasiHistory.query.filter_by(anggota_id=a.id).order_by(LokasiHistory.waktu.desc()).limit(50).all()
+        return jsonify({'success': True, 'data': {
+            'anggota': {'kartu_id': a.kartu_id, 'nama': a.nama, 'status_kartu': a.status_kartu},
+            'lokasi_terakhir': {
+                'lat': a.lokasi_lat, 'lng': a.lokasi_lng, 'lokasi': a.lokasi_nama,
+                'waktu': a.lokasi_waktu.strftime('%Y-%m-%d %H:%M:%S') if a.lokasi_waktu else None,
+            },
+            'history': [h.to_dict() for h in history],
+        }})
+
+    @app.route('/api/menu', methods=['GET'])
+    @login_required
+    def api_menu_list():
+        menu = MenuKantin.query.filter_by(is_available=True).order_by(MenuKantin.kategori, MenuKantin.nama).all()
+        return jsonify({'success': True, 'data': [m.to_dict() for m in menu]})
+
+    @app.route('/api/dashboard/stats', methods=['GET'])
+    @login_required
+    def api_dashboard_stats():
+        return jsonify({'success': True, 'data': {
+            'total_anggota': Anggota.query.count(),
+            'kartu_aktif': Anggota.query.filter_by(status_kartu='Aktif').count(),
+            'kartu_hilang': Anggota.query.filter_by(status_kartu='Hilang').count(),
+            'total_saldo': db.session.query(db.func.coalesce(db.func.sum(Anggota.saldo), 0)).scalar(),
+            'total_transaksi': Transaksi.query.count(),
+        }})
+
 
 # ============================================================
-# PEMBAYARAN (Payment)
+# ERROR HANDLERS
 # ============================================================
 
-@app.route('/pembayaran')
-@login_required
-def pembayaran():
-    return render_template('pembayaran.html', anggota_data=ANGGOTA_DATA)
+def register_error_handlers(app):
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Not found'}), 404
+        flash('Halaman tidak ditemukan.', 'danger')
+        return redirect(url_for('dashboard'))
 
-@app.route('/pembayaran/proses', methods=['POST'])
-@login_required
-def pembayaran_proses():
-    flash('Pembayaran berhasil diproses! (Demo)', 'success')
-    return redirect(url_for('pembayaran'))
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'message': 'Server error'}), 500
+        flash('Terjadi kesalahan server.', 'danger')
+        return redirect(url_for('dashboard'))
 
-# ============================================================
-# TOP UP SALDO
-# ============================================================
-
-@app.route('/topup')
-@admin_required
-def topup():
-    return render_template('admin/topup.html', anggota_data=ANGGOTA_DATA)
-
-@app.route('/topup/proses', methods=['POST'])
-@admin_required
-def topup_proses():
-    flash('Top up saldo berhasil! (Demo)', 'success')
-    return redirect(url_for('topup'))
-
-# ============================================================
-# LACAK KARTU (Track Card)
-# ============================================================
-
-@app.route('/lacak')
-@login_required
-def lacak_kartu():
-    return render_template('lacak_kartu.html', anggota_data=ANGGOTA_DATA)
-
-# ============================================================
-# TRANSAKSI (Transactions)
-# ============================================================
-
-@app.route('/transaksi')
-@login_required
-def transaksi():
-    return render_template('transaksi.html', transaksi_data=TRANSAKSI_DATA)
-
-# ============================================================
-# API ENDPOINTS (for AJAX)
-# ============================================================
-
-@app.route('/api/anggota/<anggota_id>')
-@login_required
-def api_anggota_detail(anggota_id):
-    anggota = next((a for a in ANGGOTA_DATA if a['id'] == anggota_id), None)
-    if anggota:
-        return jsonify(anggota)
-    return jsonify({'error': 'Not found'}), 404
-
-@app.route('/api/scan/nfc/<nfc_uid>')
-@login_required
-def api_scan_nfc(nfc_uid):
-    anggota = next((a for a in ANGGOTA_DATA if a['nfc_uid'] == nfc_uid), None)
-    if anggota:
-        return jsonify({'success': True, 'data': anggota})
-    return jsonify({'success': False, 'message': 'Kartu NFC tidak terdaftar'}), 404
-
-@app.route('/api/scan/qr/<qr_data>')
-@login_required
-def api_scan_qr(qr_data):
-    anggota = next((a for a in ANGGOTA_DATA if a['qr_data'] == qr_data), None)
-    if anggota:
-        return jsonify({'success': True, 'data': anggota})
-    return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
-
-# ============================================================
-# TEMPLATE FILTERS
-# ============================================================
-
-@app.template_filter('rupiah')
-def rupiah_format(value):
-    return f"Rp {value:,.0f}".replace(",", ".")
-
-@app.template_filter('datetime_format')
-def datetime_format_filter(value, fmt='%d %b %Y, %H:%M'):
-    try:
-        dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
-        return dt.strftime(fmt)
-    except:
-        return value
-
-@app.context_processor
-def inject_now():
-    return {'now': datetime.now()}
 
 # ============================================================
 # RUN
 # ============================================================
+
+app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
