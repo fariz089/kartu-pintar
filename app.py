@@ -6,9 +6,10 @@ Flask Application with MySQL Backend
 
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import uuid
+import jwt as pyjwt
 
 from config import config_map
 from models import db, User, Anggota, Transaksi, LokasiHistory, MenuKantin
@@ -84,6 +85,88 @@ def admin_required(f):
                 return jsonify({'success': False, 'message': 'Admin access required'}), 403
             flash('Anda tidak memiliki akses.', 'danger')
             return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ============================================================
+# JWT HELPERS (for React Native mobile app)
+# ============================================================
+
+def generate_jwt_token(user):
+    """Generate JWT token for mobile API"""
+    from flask import current_app
+    payload = {
+        'user_id': user.id,
+        'username': user.username,
+        'role': user.role,
+        'nama': user.nama,
+        'anggota_id': user.anggota_id,
+        'exp': datetime.utcnow() + timedelta(days=7),
+        'iat': datetime.utcnow(),
+    }
+    return pyjwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+
+def jwt_required(f):
+    """Decorator for JWT-protected API endpoints (mobile)"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+
+        if not token:
+            # Fallback to session auth (for web)
+            if 'user_id' in session:
+                request.current_user_id = session['user_id']
+                request.current_role = session.get('role')
+                return f(*args, **kwargs)
+            return jsonify({'success': False, 'message': 'Token required'}), 401
+
+        try:
+            from flask import current_app
+            payload = pyjwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            request.current_user_id = payload['user_id']
+            request.current_role = payload.get('role')
+        except pyjwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'message': 'Token expired'}), 401
+        except pyjwt.InvalidTokenError:
+            return jsonify({'success': False, 'message': 'Token invalid'}), 401
+
+        return f(*args, **kwargs)
+    return decorated
+
+
+def jwt_admin_required(f):
+    """JWT decorator requiring admin role"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+
+        if not token:
+            if 'user_id' in session and session.get('role') == 'admin':
+                request.current_user_id = session['user_id']
+                request.current_role = 'admin'
+                return f(*args, **kwargs)
+            return jsonify({'success': False, 'message': 'Admin token required'}), 401
+
+        try:
+            from flask import current_app
+            payload = pyjwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            if payload.get('role') != 'admin':
+                return jsonify({'success': False, 'message': 'Admin access required'}), 403
+            request.current_user_id = payload['user_id']
+            request.current_role = 'admin'
+        except pyjwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'message': 'Token expired'}), 401
+        except pyjwt.InvalidTokenError:
+            return jsonify({'success': False, 'message': 'Token invalid'}), 401
+
         return f(*args, **kwargs)
     return decorated
 
@@ -362,6 +445,7 @@ def register_routes(app):
             'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
             'pangkat': a.pangkat, 'saldo': a.saldo,
             'nfc_uid': a.nfc_uid, 'qr_data': a.qr_data, 'foto': a.foto,
+            'status_kartu': a.status_kartu,
         } for a in anggota_raw]
         return render_template('pembayaran.html', anggota_data=anggota_data)
 
@@ -512,14 +596,33 @@ def register_api_routes(app):
         if user and user.check_password(data.get('password', '')):
             if not user.is_active:
                 return jsonify({'success': False, 'message': 'Akun dinonaktifkan'}), 403
+
+            token = generate_jwt_token(user)
             user_data = user.to_dict()
             if user.anggota:
                 user_data['anggota'] = user.anggota.to_dict()
-            return jsonify({'success': True, 'data': user_data})
+
+            return jsonify({
+                'success': True,
+                'token': token,
+                'data': user_data,
+            })
         return jsonify({'success': False, 'message': 'Username atau password salah'}), 401
 
+    @app.route('/api/auth/me', methods=['GET'])
+    @jwt_required
+    def api_me():
+        """Get current user info from token"""
+        user = User.query.get(request.current_user_id)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+        user_data = user.to_dict()
+        if user.anggota:
+            user_data['anggota'] = user.anggota.to_dict()
+        return jsonify({'success': True, 'data': user_data})
+
     @app.route('/api/anggota', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_anggota_list():
         search = request.args.get('search', '').strip()
         query = Anggota.query
@@ -533,7 +636,7 @@ def register_api_routes(app):
         return jsonify({'success': True, 'data': [a.to_dict() for a in result]})
 
     @app.route('/api/anggota/<anggota_id>', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_anggota_detail(anggota_id):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if a:
@@ -541,7 +644,7 @@ def register_api_routes(app):
         return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
 
     @app.route('/api/scan/nfc/<nfc_uid>', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_scan_nfc(nfc_uid):
         a = Anggota.query.filter_by(nfc_uid=nfc_uid).first()
         if a:
@@ -556,7 +659,7 @@ def register_api_routes(app):
         return jsonify({'success': False, 'message': 'Kartu NFC tidak terdaftar'}), 404
 
     @app.route('/api/scan/qr/<qr_data>', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_scan_qr(qr_data):
         a = Anggota.query.filter(
             db.or_(Anggota.qr_data == qr_data, Anggota.kartu_id == qr_data)
@@ -573,7 +676,7 @@ def register_api_routes(app):
         return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
 
     @app.route('/api/pembayaran', methods=['POST'])
-    @login_required
+    @jwt_required
     def api_pembayaran():
         data = request.get_json()
         if not data:
@@ -601,7 +704,7 @@ def register_api_routes(app):
                 trx_id=generate_trx_id(), anggota_id=anggota.id,
                 jenis='Pembelian', keterangan=keterangan, nominal=nominal,
                 saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
-                status='Berhasil', metode=metode, operator_id=session.get('user_id'),
+                status='Berhasil', metode=metode, operator_id=request.current_user_id,
             )
             db.session.add(trx)
             anggota.lokasi_nama = 'Kantin Poltekkad'
@@ -616,7 +719,7 @@ def register_api_routes(app):
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/topup', methods=['POST'])
-    @login_required
+    @jwt_admin_required
     def api_topup():
         data = request.get_json()
         if not data:
@@ -638,7 +741,7 @@ def register_api_routes(app):
                 trx_id=generate_trx_id(), anggota_id=anggota.id,
                 jenis='Top Up', keterangan='Pengisian Saldo', nominal=nominal,
                 saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
-                status='Berhasil', metode='Manual', operator_id=session.get('user_id'),
+                status='Berhasil', metode='Manual', operator_id=request.current_user_id,
             )
             db.session.add(trx)
             db.session.commit()
@@ -651,7 +754,7 @@ def register_api_routes(app):
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/transaksi', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_transaksi_list():
         kartu_id = request.args.get('kartu_id', '').strip()
         jenis = request.args.get('jenis', '').strip()
@@ -667,7 +770,7 @@ def register_api_routes(app):
         return jsonify({'success': True, 'data': [t.to_dict() for t in result]})
 
     @app.route('/api/lacak/<anggota_id>', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_lacak(anggota_id):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
@@ -683,13 +786,13 @@ def register_api_routes(app):
         }})
 
     @app.route('/api/menu', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_menu_list():
         menu = MenuKantin.query.filter_by(is_available=True).order_by(MenuKantin.kategori, MenuKantin.nama).all()
         return jsonify({'success': True, 'data': [m.to_dict() for m in menu]})
 
     @app.route('/api/dashboard/stats', methods=['GET'])
-    @login_required
+    @jwt_required
     def api_dashboard_stats():
         return jsonify({'success': True, 'data': {
             'total_anggota': Anggota.query.count(),
