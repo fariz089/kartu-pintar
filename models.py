@@ -194,16 +194,24 @@ class LokasiHistory(db.Model):
     longitude = db.Column(db.Float, nullable=False)
     lokasi_nama = db.Column(db.String(200), nullable=True)
     sumber = db.Column(db.String(20), default='NFC')  # NFC scan, GPS, Manual
+    scanned_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     waktu = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # Relationship
+    scanned_by = db.relationship('User', backref='scan_logs', foreign_keys=[scanned_by_user_id])
 
     def to_dict(self):
         return {
             'id': self.id,
             'anggota_id': self.anggota_id,
+            'anggota_nama': self.anggota.nama if self.anggota else None,
+            'anggota_kartu_id': self.anggota.kartu_id if self.anggota else None,
             'latitude': self.latitude,
             'longitude': self.longitude,
             'lokasi_nama': self.lokasi_nama,
             'sumber': self.sumber,
+            'scanned_by_user_id': self.scanned_by_user_id,
+            'scanned_by_nama': self.scanned_by.nama if self.scanned_by else None,
             'waktu': self.waktu.strftime('%Y-%m-%d %H:%M:%S'),
         }
 

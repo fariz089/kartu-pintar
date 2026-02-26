@@ -89,6 +89,20 @@ def admin_required(f):
     return decorated
 
 
+def kantin_or_admin_required(f):
+    """Allow admin and operator_kantin only"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Silakan login terlebih dahulu.', 'warning')
+            return redirect(url_for('login'))
+        if session.get('role') not in ('admin', 'operator_kantin'):
+            flash('Anda tidak memiliki akses.', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ============================================================
 # JWT HELPERS (for React Native mobile app)
 # ============================================================
@@ -256,6 +270,14 @@ def register_routes(app):
     @app.route('/dashboard')
     @login_required
     def dashboard():
+        role = session.get('role')
+        # User → redirect to scan page (their main function)
+        if role == 'user':
+            return redirect(url_for('scan_page'))
+        # Operator kantin → redirect to pembayaran
+        if role == 'operator_kantin':
+            return redirect(url_for('pembayaran'))
+        # Admin → full dashboard
         total_anggota = Anggota.query.count()
         kartu_aktif = Anggota.query.filter_by(status_kartu='Aktif').count()
         kartu_hilang = Anggota.query.filter_by(status_kartu='Hilang').count()
@@ -272,10 +294,10 @@ def register_routes(app):
             anggota_data=[anggota_to_dict(a) for a in anggota_raw],
         )
 
-    # --- ANGGOTA ---
+    # --- ANGGOTA (Admin only) ---
 
     @app.route('/anggota')
-    @login_required
+    @admin_required
     def anggota_list():
         search = request.args.get('search', '').strip()
         status = request.args.get('status', '').strip()
@@ -294,7 +316,7 @@ def register_routes(app):
             anggota_data=[anggota_to_dict(a, include_lokasi=False) for a in all_anggota])
 
     @app.route('/anggota/<anggota_id>')
-    @login_required
+    @admin_required
     def anggota_detail(anggota_id):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
@@ -424,6 +446,7 @@ def register_routes(app):
             flash('Kartu tidak terdaftar dalam sistem.', 'danger')
             return redirect(url_for('scan_page'))
 
+        # Log scan with who scanned it
         a.lokasi_waktu = datetime.now()
         db.session.add(LokasiHistory(
             anggota_id=a.id,
@@ -431,14 +454,25 @@ def register_routes(app):
             longitude=a.lokasi_lng or 107.6100,
             lokasi_nama='Scan Point',
             sumber='QR' if card_id == a.qr_data else 'NFC',
+            scanned_by_user_id=session.get('user_id'),
         ))
         db.session.commit()
-        return render_template('scan_result.html', anggota=anggota_to_dict(a))
 
-    # --- PEMBAYARAN ---
+        role = session.get('role')
+        anggota_data = anggota_to_dict(a)
+        # For user role: hide saldo and sensitive info
+        if role == 'user':
+            anggota_data['saldo'] = None
+            anggota_data['show_saldo'] = False
+        else:
+            anggota_data['show_saldo'] = True
+
+        return render_template('scan_result.html', anggota=anggota_data, user_role=role)
+
+    # --- PEMBAYARAN (Admin + Operator Kantin) ---
 
     @app.route('/pembayaran')
-    @login_required
+    @kantin_or_admin_required
     def pembayaran():
         anggota_raw = Anggota.query.filter_by(status_kartu='Aktif').all()
         anggota_data = [{
@@ -447,10 +481,13 @@ def register_routes(app):
             'nfc_uid': a.nfc_uid, 'qr_data': a.qr_data, 'foto': a.foto,
             'status_kartu': a.status_kartu,
         } for a in anggota_raw]
-        return render_template('pembayaran.html', anggota_data=anggota_data)
+        # Recent payment transactions for sidebar
+        trx_raw = Transaksi.query.filter_by(jenis='Pembelian').order_by(Transaksi.created_at.desc()).limit(5).all()
+        transaksi_terbaru = [trx_to_dict(t) for t in trx_raw]
+        return render_template('pembayaran.html', anggota_data=anggota_data, transaksi_terbaru=transaksi_terbaru)
 
     @app.route('/pembayaran/proses', methods=['POST'])
-    @login_required
+    @kantin_or_admin_required
     def pembayaran_proses():
         try:
             kartu_id = request.form.get('anggota_id', '').strip()
@@ -556,8 +593,10 @@ def register_routes(app):
 
     # --- LACAK KARTU ---
 
+    # --- LACAK KARTU (Admin only) ---
+
     @app.route('/lacak')
-    @login_required
+    @admin_required
     def lacak_kartu():
         anggota_raw = Anggota.query.all()
         anggota_data = [{
@@ -571,14 +610,44 @@ def register_routes(app):
         } for a in anggota_raw]
         return render_template('lacak_kartu.html', anggota_data=anggota_data)
 
-    # --- TRANSAKSI ---
+    # --- SCAN LOG (Admin only) ---
+
+    @app.route('/scan-log')
+    @admin_required
+    def scan_log():
+        logs = LokasiHistory.query.order_by(LokasiHistory.waktu.desc()).limit(100).all()
+        scan_data = [l.to_dict() for l in logs]
+        return render_template('admin/scan_log.html', scan_data=scan_data)
+
+    # --- TRANSAKSI (role-based) ---
 
     @app.route('/transaksi')
     @login_required
     def transaksi():
-        all_trx = Transaksi.query.order_by(Transaksi.created_at.desc()).all()
-        return render_template('transaksi.html',
-            transaksi_data=[trx_to_dict(t) for t in all_trx])
+        role = session.get('role')
+        if role == 'user':
+            # User: only own transactions (linked through anggota)
+            user = User.query.get(session['user_id'])
+            if user and user.anggota_id:
+                anggota = Anggota.query.get(user.anggota_id)
+                if anggota:
+                    all_trx = Transaksi.query.filter_by(anggota_id=anggota.id).order_by(Transaksi.created_at.desc()).all()
+                    return render_template('transaksi.html',
+                        transaksi_data=[trx_to_dict(t) for t in all_trx],
+                        page_title='Riwayat Transaksi Saya')
+            return render_template('transaksi.html', transaksi_data=[], page_title='Riwayat Transaksi Saya')
+        elif role == 'operator_kantin':
+            # Operator: only Pembelian (sales)
+            all_trx = Transaksi.query.filter_by(jenis='Pembelian').order_by(Transaksi.created_at.desc()).all()
+            return render_template('transaksi.html',
+                transaksi_data=[trx_to_dict(t) for t in all_trx],
+                page_title='Riwayat Penjualan Kantin')
+        else:
+            # Admin: all transactions
+            all_trx = Transaksi.query.order_by(Transaksi.created_at.desc()).all()
+            return render_template('transaksi.html',
+                transaksi_data=[trx_to_dict(t) for t in all_trx],
+                page_title='Riwayat Transaksi')
 
 
 # ============================================================
@@ -653,8 +722,12 @@ def register_api_routes(app):
                 anggota_id=a.id, latitude=a.lokasi_lat or -6.8927,
                 longitude=a.lokasi_lng or 107.6100,
                 lokasi_nama='NFC Scan', sumber='NFC',
+                scanned_by_user_id=request.current_user_id,
             ))
             db.session.commit()
+            # User role: limited info (no saldo)
+            if getattr(request, 'current_role', None) == 'user':
+                return jsonify({'success': True, 'data': a.to_identitas_dict()})
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'Kartu NFC tidak terdaftar'}), 404
 
@@ -670,8 +743,11 @@ def register_api_routes(app):
                 anggota_id=a.id, latitude=a.lokasi_lat or -6.8927,
                 longitude=a.lokasi_lng or 107.6100,
                 lokasi_nama='QR Scan', sumber='QR',
+                scanned_by_user_id=request.current_user_id,
             ))
             db.session.commit()
+            if getattr(request, 'current_role', None) == 'user':
+                return jsonify({'success': True, 'data': a.to_identitas_dict()})
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
 

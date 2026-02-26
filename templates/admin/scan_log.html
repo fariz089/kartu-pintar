@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Log Scan Kartu{% endblock %}
+{% block page_title %}Log Scan Kartu{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Log siapa yang scan kartu siapa — untuk tracking dan keamanan</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-journal-text" style="color: var(--gold-400); margin-right: 8px;"></i> {{ scan_data|length }} Log Scan</h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Waktu</th>
+                    <th>Kartu Di-Scan</th>
+                    <th>Di-Scan Oleh</th>
+                    <th>Metode</th>
+                    <th>Lokasi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in scan_data %}
+                <tr>
+                    <td style="color: var(--text-muted); font-size: 12px;">{{ s.waktu|datetime_format }}</td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-primary);">{{ s.anggota_nama or '-' }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">{{ s.anggota_kartu_id or '-' }}</div>
+                    </td>
+                    <td>
+                        {% if s.scanned_by_nama %}
+                        <span style="color: var(--gold-400); font-weight: 600;">{{ s.scanned_by_nama }}</span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">Sistem</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ s.sumber|lower }}" style="font-size: 10px;">{{ s.sumber }}</span>
+                    </td>
+                    <td style="color: var(--text-secondary); font-size: 12px;">{{ s.lokasi_nama or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

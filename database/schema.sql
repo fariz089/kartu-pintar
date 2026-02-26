@@ -118,13 +118,17 @@ CREATE TABLE IF NOT EXISTS lokasi_history (
     longitude FLOAT NOT NULL,
     lokasi_nama VARCHAR(200),
     sumber VARCHAR(20) DEFAULT 'NFC',
+    scanned_by_user_id INT NULL,
     waktu DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     INDEX idx_anggota_id (anggota_id),
     INDEX idx_waktu (waktu),
+    INDEX idx_scanned_by (scanned_by_user_id),
 
     CONSTRAINT fk_lokasi_anggota FOREIGN KEY (anggota_id)
-        REFERENCES anggota(id) ON DELETE CASCADE
+        REFERENCES anggota(id) ON DELETE CASCADE,
+    CONSTRAINT fk_lokasi_scanned_by FOREIGN KEY (scanned_by_user_id)
+        REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- ============================================================

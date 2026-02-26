@@ -35,6 +35,10 @@
         </div>
 
         <nav class="sidebar-nav">
+            {% set role = session.get('role', '') %}
+
+            {# === ADMIN: Full access === #}
+            {% if role == 'admin' %}
             <div class="nav-section">
                 <span class="nav-section-title">MENU UTAMA</span>
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
@@ -50,32 +54,65 @@
                     <span>Scan NFC / QR</span>
                 </a>
             </div>
-
             <div class="nav-section">
                 <span class="nav-section-title">KEUANGAN</span>
                 <a href="{{ url_for('pembayaran') }}" class="nav-link {% if request.endpoint == 'pembayaran' %}active{% endif %}">
                     <i class="bi bi-credit-card-2-front-fill"></i>
                     <span>Pembayaran Kantin</span>
                 </a>
-                {% if session.get('role') == 'admin' %}
                 <a href="{{ url_for('topup') }}" class="nav-link {% if request.endpoint == 'topup' %}active{% endif %}">
                     <i class="bi bi-wallet-fill"></i>
                     <span>Top Up Saldo</span>
                 </a>
-                {% endif %}
                 <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
                     <i class="bi bi-receipt"></i>
                     <span>Riwayat Transaksi</span>
                 </a>
             </div>
-
             <div class="nav-section">
-                <span class="nav-section-title">FITUR LAINNYA</span>
+                <span class="nav-section-title">MONITORING</span>
                 <a href="{{ url_for('lacak_kartu') }}" class="nav-link {% if request.endpoint == 'lacak_kartu' %}active{% endif %}">
                     <i class="bi bi-geo-alt-fill"></i>
                     <span>Lacak Kartu</span>
                 </a>
+                <a href="{{ url_for('scan_log') }}" class="nav-link {% if request.endpoint == 'scan_log' %}active{% endif %}">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Log Scan Kartu</span>
+                </a>
             </div>
+
+            {# === OPERATOR KANTIN: Payment + Sales history === #}
+            {% elif role == 'operator_kantin' %}
+            <div class="nav-section">
+                <span class="nav-section-title">KANTIN</span>
+                <a href="{{ url_for('pembayaran') }}" class="nav-link {% if request.endpoint == 'pembayaran' %}active{% endif %}">
+                    <i class="bi bi-credit-card-2-front-fill"></i>
+                    <span>Pembayaran Kantin</span>
+                </a>
+                <a href="{{ url_for('scan_page') }}" class="nav-link {% if 'scan' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-nfc"></i>
+                    <span>Scan NFC / QR</span>
+                </a>
+                <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Riwayat Penjualan</span>
+                </a>
+            </div>
+
+            {# === USER: Scan + Own transactions === #}
+            {% else %}
+            <div class="nav-section">
+                <span class="nav-section-title">MENU</span>
+                <a href="{{ url_for('scan_page') }}" class="nav-link {% if 'scan' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-nfc"></i>
+                    <span>Scan NFC / QR</span>
+                </a>
+                <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Riwayat Transaksi Saya</span>
+                </a>
+            </div>
+            {% endif %}
         </nav>
 
         <div class="sidebar-footer">

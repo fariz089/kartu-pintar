@@ -118,21 +118,26 @@
                 <h2><i class="bi bi-clock-history" style="color: var(--gold-400);"></i> Transaksi Terakhir</h2>
             </div>
             <div class="card-body" style="padding: 0;">
-                {% for a in anggota_data[:3] %}
+                {% for t in transaksi_terbaru %}
                 <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
                     <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(197, 164, 78, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                         <i class="bi bi-cart-fill" style="color: var(--gold-400); font-size: 14px;"></i>
                     </div>
                     <div style="flex: 1;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ a.nama }}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">Makan Siang - Kantin</div>
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ t.nama }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">{{ t.keterangan }}</div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--text-accent);">-Rp 25.000</div>
-                        <div style="font-size: 10px; color: var(--text-muted);">Hari ini</div>
+                        <div style="font-size: 13px; font-weight: 600; color: {% if t.status == 'Gagal' %}var(--red-300){% else %}var(--text-accent){% endif %};">-{{ t.nominal|rupiah }}</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">{{ t.waktu|datetime_format }}</div>
                     </div>
                 </div>
                 {% endfor %}
+                {% if not transaksi_terbaru %}
+                <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                    Belum ada transaksi
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

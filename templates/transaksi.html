@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Riwayat Transaksi{% endblock %}
-{% block page_title %}Riwayat Transaksi{% endblock %}
+{% block title %}{{ page_title|default('Riwayat Transaksi') }}{% endblock %}
+{% block page_title %}{{ page_title|default('Riwayat Transaksi') }}{% endblock %}
 
 {% block content %}
 <div class="section-header">
-    <p class="text-muted" style="font-size: 14px;">Riwayat seluruh transaksi pembayaran dan top up Kartu Pintar</p>
+    <p class="text-muted" style="font-size: 14px;">{{ page_title|default('Riwayat seluruh transaksi pembayaran dan top up Kartu Pintar') }}</p>
 </div>
 
 <!-- Filter -->

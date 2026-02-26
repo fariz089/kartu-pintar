@@ -65,15 +65,23 @@
             </div>
         </div>
 
+        {% if anggota.show_saldo %}
         <div class="saldo-display mt-2">
             <label>Saldo Tersedia</label>
             <div class="saldo-amount">{{ anggota.saldo|rupiah }}</div>
         </div>
+        {% endif %}
 
         <div class="d-flex gap-2 mt-2">
+            {% if user_role == 'admin' %}
             <a href="{{ url_for('anggota_detail', anggota_id=anggota.id) }}" class="btn btn-primary" style="flex:1; justify-content: center;">
                 <i class="bi bi-person-badge"></i> Lihat Detail Lengkap
             </a>
+            {% else %}
+            <a href="{{ url_for('scan_page') }}" class="btn btn-secondary" style="flex:1; justify-content: center;">
+                <i class="bi bi-arrow-left"></i> Scan Lagi
+            </a>
+            {% endif %}
         </div>
     </div>
 
