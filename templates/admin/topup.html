@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Top Up Saldo{% endblock %}
+{% block page_title %}Top Up Saldo{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Isi ulang saldo Kartu Pintar anggota (Hanya Admin)</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-wallet-fill" style="color: var(--gold-400);"></i> Form Top Up</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('topup_proses') }}">
+                <div class="form-group">
+                    <label class="form-label">Pilih Anggota</label>
+                    <select name="anggota_id" class="form-select" id="topupAnggota" required>
+                        <option value="">— Pilih Anggota —</option>
+                        {% for a in anggota_data %}
+                        <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}">
+                            {{ a.nama }} — {{ a.pangkat }} (Saldo: {{ a.saldo|rupiah }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="topupMemberInfo" style="display: none;" class="mb-2">
+                    <div style="padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
+                        <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo Saat Ini</div>
+                        <div style="font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--gold-400);" id="topupCurrentSaldo">-</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Nominal Top Up</label>
+                    <input type="number" name="nominal" class="form-input" placeholder="Masukkan nominal" min="10000" step="1000" required>
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.querySelector('input[name=nominal]').value=50000">Rp 50.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.querySelector('input[name=nominal]').value=100000">Rp 100.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.querySelector('input[name=nominal]').value=200000">Rp 200.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.querySelector('input[name=nominal]').value=500000">Rp 500.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.querySelector('input[name=nominal]').value=1000000">Rp 1.000.000</button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Keterangan</label>
+                    <input type="text" name="keterangan" class="form-input" placeholder="Contoh: Pengisian saldo bulanan" value="Pengisian Saldo">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100" style="justify-content: center;">
+                    <i class="bi bi-plus-circle-fill"></i>
+                    Proses Top Up
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right: Member Saldo Overview -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-people-fill" style="color: var(--gold-400);"></i> Saldo Anggota</h2>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% for a in anggota_data %}
+                <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold-400); flex-shrink: 0;">
+                        {{ a.nama[0] }}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ a.nama }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">{{ a.pangkat }} — {{ a.jabatan }}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: {% if a.saldo < 200000 %}var(--red-300){% else %}var(--gold-400){% endif %};">
+                            {{ a.saldo|rupiah }}
+                        </div>
+                        <span class="badge badge-{{ a.status_kartu|lower }}" style="font-size: 9px;">{{ a.status_kartu }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('topupAnggota').addEventListener('change', function() {
+    const info = document.getElementById('topupMemberInfo');
+    const opt = this.options[this.selectedIndex];
+    if (this.value) {
+        info.style.display = 'block';
+        document.getElementById('topupCurrentSaldo').textContent = 'Rp ' + parseInt(opt.dataset.saldo).toLocaleString('id-ID');
+    } else {
+        info.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

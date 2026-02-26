@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Lacak Kartu{% endblock %}
+{% block page_title %}Lacak Kartu{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Lacak lokasi terakhir Kartu Pintar yang hilang atau terjatuh</p>
+</div>
+
+<!-- Alert for lost cards -->
+{% set kartu_hilang = anggota_data|selectattr('status_kartu', 'equalto', 'Hilang')|list %}
+{% if kartu_hilang %}
+<div class="card mb-2" style="border-color: rgba(168, 58, 58, 0.4); background: linear-gradient(135deg, rgba(168, 58, 58, 0.08), var(--bg-card));">
+    <div class="card-body">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(168, 58, 58, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="bi bi-exclamation-triangle-fill" style="color: var(--red-300); font-size: 20px;"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 15px; color: var(--red-300); margin-bottom: 2px;">{{ kartu_hilang|length }} Kartu Dilaporkan Hilang</h4>
+                <p style="font-size: 13px; color: var(--text-muted);">Kartu-kartu berikut dilaporkan hilang dan perlu segera dilacak.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Map -->
+<div class="card mb-2">
+    <div class="card-header">
+        <h2><i class="bi bi-map-fill" style="color: var(--gold-400);"></i> Peta Lokasi Kartu</h2>
+    </div>
+    <div class="map-container">
+        <div class="map-placeholder">
+            <i class="bi bi-geo-alt-fill"></i>
+            <p>Peta Lokasi Kartu Pintar</p>
+            <p style="font-size: 12px; margin-top: 4px;">Integrasi Google Maps / Leaflet tersedia di production</p>
+
+            <!-- Mini visual map representation -->
+            <div style="margin-top: 20px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                {% for a in anggota_data %}
+                <div style="text-align: center;">
+                    <div class="location-pin {{ a.status_kartu|lower }}" style="margin: 0 auto 6px;">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">{{ a.nama.split(' ')[-1] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Card Location List -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-list-ul" style="color: var(--gold-400);"></i> Lokasi Semua Kartu</h2>
+    </div>
+    <div class="card-body">
+        <div class="location-card-list">
+            {% for a in anggota_data %}
+            <div class="location-card {% if a.status_kartu == 'Hilang' %}hilang{% endif %}" onclick="window.location='{{ url_for('anggota_detail', anggota_id=a.id) }}'">
+                <div class="location-pin {{ a.status_kartu|lower }}">
+                    <i class="bi bi-geo-alt-fill"></i>
+                </div>
+                <div class="location-info" style="flex: 1;">
+                    <h4>{{ a.nama }}</h4>
+                    <p>
+                        <i class="bi bi-pin-map"></i> {{ a.lokasi_terakhir.lokasi }}
+                    </p>
+                    <p style="font-size: 11px;">
+                        <i class="bi bi-clock"></i> {{ a.lokasi_terakhir.waktu|datetime_format }}
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge badge-{{ a.status_kartu|lower }}">
+                        {{ a.status_kartu }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="card mt-2">
+    <div class="card-body">
+        <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(74, 122, 140, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="bi bi-info-circle-fill" style="color: #6bb0c4; font-size: 18px;"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">Tentang Pelacakan Kartu</h4>
+                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.7;">
+                    Kartu Pintar dilengkapi dengan teknologi pelacakan yang memungkinkan lokasi terakhir kartu diketahui.
+                    Lokasi diperbarui setiap kali kartu digunakan untuk scan NFC, pembayaran, atau melewati checkpoint.
+                    Jika kartu hilang, segera hubungi admin untuk memblokir kartu dan melacak lokasinya.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

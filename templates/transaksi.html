@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Riwayat Transaksi{% endblock %}
+{% block page_title %}Riwayat Transaksi{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Riwayat seluruh transaksi pembayaran dan top up Kartu Pintar</p>
+</div>
+
+<!-- Filter -->
+<div class="card mb-2">
+    <div class="card-body" style="padding: 14px 20px;">
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px; position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <input type="text" id="trxSearch" class="form-input" style="padding-left: 40px;" placeholder="Cari transaksi...">
+            </div>
+            <select class="form-select" style="width: 160px;" id="trxJenisFilter">
+                <option value="">Semua Jenis</option>
+                <option value="Pembelian">Pembelian</option>
+                <option value="Top Up">Top Up</option>
+            </select>
+            <select class="form-select" style="width: 160px;" id="trxStatusFilter">
+                <option value="">Semua Status</option>
+                <option value="Berhasil">Berhasil</option>
+                <option value="Gagal">Gagal</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-receipt" style="color: var(--gold-400);"></i> {{ transaksi_data|length }} Transaksi</h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table" id="trxTable">
+            <thead>
+                <tr>
+                    <th>ID Transaksi</th>
+                    <th>Nama Anggota</th>
+                    <th>Jenis</th>
+                    <th>Keterangan</th>
+                    <th>Nominal</th>
+                    <th>Waktu</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transaksi_data %}
+                <tr class="trx-row" data-nama="{{ t.nama|lower }}" data-jenis="{{ t.jenis }}" data-status="{{ t.status }}">
+                    <td><code style="font-size: 11px; color: var(--text-muted);">{{ t.id }}</code></td>
+                    <td>
+                        <a href="{{ url_for('anggota_detail', anggota_id=t.anggota_id) }}" style="color: var(--text-primary); font-weight: 600;">
+                            {{ t.nama }}
+                        </a>
+                    </td>
+                    <td><span class="badge badge-{{ t.jenis|lower|replace(' ', '') }}">{{ t.jenis }}</span></td>
+                    <td>{{ t.keterangan }}</td>
+                    <td style="font-weight: 600; color: {% if t.jenis == 'Top Up' %}#6ecc6e{% else %}var(--text-accent){% endif %};">
+                        {% if t.jenis == 'Top Up' %}+{% else %}-{% endif %}{{ t.nominal|rupiah }}
+                    </td>
+                    <td style="font-size: 12px; color: var(--text-muted);">{{ t.waktu|datetime_format }}</td>
+                    <td><span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const search = document.getElementById('trxSearch');
+    const jenisFilter = document.getElementById('trxJenisFilter');
+    const statusFilter = document.getElementById('trxStatusFilter');
+    const rows = document.querySelectorAll('.trx-row');
+
+    function filter() {
+        const q = search.value.toLowerCase();
+        const jenis = jenisFilter.value;
+        const status = statusFilter.value;
+
+        rows.forEach(row => {
+            const matchSearch = !q || row.dataset.nama.includes(q);
+            const matchJenis = !jenis || row.dataset.jenis === jenis;
+            const matchStatus = !status || row.dataset.status === status;
+            row.style.display = (matchSearch && matchJenis && matchStatus) ? '' : 'none';
+        });
+    }
+
+    search.addEventListener('input', filter);
+    jenisFilter.addEventListener('change', filter);
+    statusFilter.addEventListener('change', filter);
+});
+</script>
+{% endblock %}

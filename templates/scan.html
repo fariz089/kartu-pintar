@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Scan NFC / QR{% endblock %}
+{% block page_title %}Scan NFC / QR{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Scan kartu NFC atau QR Code untuk identifikasi anggota</p>
+</div>
+
+<!-- Scan Options -->
+<div class="scan-options">
+    <div class="scan-card" onclick="simulateNFCScan()">
+        <div class="scan-card-icon">
+            <i class="bi bi-nfc"></i>
+        </div>
+        <h3>SCAN NFC</h3>
+        <p>Tempelkan Kartu Pintar ke perangkat NFC reader untuk menampilkan identitas pemilik kartu</p>
+        <button class="btn btn-primary mt-2">
+            <i class="bi bi-broadcast"></i> Mulai Scan NFC
+        </button>
+    </div>
+
+    <div class="scan-card" onclick="simulateQRScan()">
+        <div class="scan-card-icon">
+            <i class="bi bi-qr-code-scan"></i>
+        </div>
+        <h3>SCAN QR CODE</h3>
+        <p>Arahkan kamera ke QR Code pada Kartu Pintar untuk melihat identitas pemegang kartu</p>
+        <button class="btn btn-primary mt-2">
+            <i class="bi bi-camera"></i> Mulai Scan QR
+        </button>
+    </div>
+</div>
+
+<!-- Scan Result Area -->
+<div id="scanResult"></div>
+
+<!-- Manual Search -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h2><i class="bi bi-search" style="color: var(--gold-400);"></i> Cari Manual</h2>
+    </div>
+    <div class="card-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Masukkan NFC UID atau ID Kartu untuk mencari anggota secara manual</p>
+        <div style="display: flex; gap: 12px;">
+            <input type="text" id="manualSearch" class="form-input" placeholder="Contoh: A1B2C3D4 atau KP-2025-001" style="flex: 1;">
+            <button class="btn btn-primary" onclick="manualScan()">
+                <i class="bi bi-search"></i> Cari
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Info Box -->
+<div class="card mt-2">
+    <div class="card-body">
+        <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(74, 122, 140, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="bi bi-info-circle-fill" style="color: #6bb0c4; font-size: 18px;"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">Informasi Penting</h4>
+                <p style="font-size: 13px; color: var(--text-muted); line-height: 1.7;">
+                    Hanya pengguna yang memiliki akses ke sistem (user terdaftar) yang dapat melakukan scan NFC dan QR Code.
+                    Pihak sipil yang tidak memiliki akses tidak dapat menggunakan fitur ini.
+                    Data identitas yang ditampilkan bersifat rahasia dan hanya untuk kepentingan dinas.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function manualScan() {
+    const val = document.getElementById('manualSearch').value.trim();
+    if (val) {
+        window.location.href = `/scan/result/${val}`;
+    }
+}
+
+document.getElementById('manualSearch').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') manualScan();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kartu Pintar{% endblock %} — Poltekkad</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if session.get('user') %}
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-icon">
+                    <i class="bi bi-shield-fill-check"></i>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-title">KARTU PINTAR</span>
+                    <span class="logo-subtitle">POLTEKKAD</span>
+                </div>
+            </div>
+            <button class="sidebar-close" id="sidebarClose">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <span class="nav-section-title">MENU UTAMA</span>
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('anggota_list') }}" class="nav-link {% if 'anggota' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Data Anggota</span>
+                </a>
+                <a href="{{ url_for('scan_page') }}" class="nav-link {% if 'scan' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-nfc"></i>
+                    <span>Scan NFC / QR</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-section-title">KEUANGAN</span>
+                <a href="{{ url_for('pembayaran') }}" class="nav-link {% if request.endpoint == 'pembayaran' %}active{% endif %}">
+                    <i class="bi bi-credit-card-2-front-fill"></i>
+                    <span>Pembayaran Kantin</span>
+                </a>
+                {% if session.get('role') == 'admin' %}
+                <a href="{{ url_for('topup') }}" class="nav-link {% if request.endpoint == 'topup' %}active{% endif %}">
+                    <i class="bi bi-wallet-fill"></i>
+                    <span>Top Up Saldo</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Riwayat Transaksi</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <span class="nav-section-title">FITUR LAINNYA</span>
+                <a href="{{ url_for('lacak_kartu') }}" class="nav-link {% if request.endpoint == 'lacak_kartu' %}active{% endif %}">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span>Lacak Kartu</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <div class="user-info">
+                    <span class="user-name">{{ session.get('nama', 'User') }}</span>
+                    <span class="user-role">{{ session.get('role', '').upper() }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" class="user-logout" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="hamburger" id="hamburger">
+                    <i class="bi bi-list"></i>
+                </button>
+                <div class="breadcrumb-area">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <span class="topbar-date">
+                    <i class="bi bi-calendar3"></i>
+                    {{ now.strftime('%d %B %Y') }}
+                </span>
+                <div class="topbar-badge">
+                    <span class="badge-role {{ session.get('role', '') }}">
+                        <i class="bi bi-shield-lock-fill"></i>
+                        {{ session.get('role', '').upper() }}
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">
+                <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' %}exclamation-triangle-fill{% elif category == 'warning' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        <div class="page-content">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    {% else %}
+        {% block auth_content %}{% endblock %}
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

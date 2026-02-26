@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Pembayaran Kantin{% endblock %}
+{% block page_title %}Pembayaran Kantin{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Lakukan pembayaran di kantin Poltekkad menggunakan Kartu Pintar</p>
+</div>
+
+<div class="payment-section">
+    <!-- Left: Payment Form -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-credit-card-2-front-fill" style="color: var(--gold-400);"></i> Form Pembayaran</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('pembayaran_proses') }}">
+                    <!-- Select Member -->
+                    <div class="form-group">
+                        <label class="form-label">Pilih Anggota / Scan Kartu</label>
+                        <select name="anggota_id" class="form-select" id="selectAnggota" required>
+                            <option value="">— Pilih Anggota —</option>
+                            {% for a in anggota_data %}
+                            {% if a.status_kartu == 'Aktif' %}
+                            <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}" data-pangkat="{{ a.pangkat }}">
+                                {{ a.nama }} — {{ a.pangkat }} ({{ a.saldo|rupiah }})
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Selected Member Info -->
+                    <div id="memberInfo" style="display: none;" class="mb-2">
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gold-400); flex-shrink: 0;">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: var(--text-primary);" id="infoNama">-</div>
+                                <div style="font-size: 12px; color: var(--text-muted);" id="infoPangkat">-</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo</div>
+                                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gold-400);" id="infoSaldo">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="form-group">
+                        <label class="form-label">Nominal Pembayaran</label>
+                        <div class="amount-display">
+                            <span class="currency">Rp</span>
+                            <div class="amount" id="amountValue">0</div>
+                        </div>
+                        <input type="hidden" name="amount" id="amountInput" value="0">
+                    </div>
+
+                    <!-- Numpad -->
+                    <div class="payment-numpad">
+                        <button type="button" class="numpad-btn" onclick="numpadPress('1')">1</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('2')">2</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('3')">3</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('4')">4</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('5')">5</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('6')">6</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('7')">7</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('8')">8</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('9')">9</button>
+                        <button type="button" class="numpad-btn clear" onclick="numpadPress('C')">C</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('0')">0</button>
+                        <button type="button" class="numpad-btn" onclick="numpadPress('DEL')">
+                            <i class="bi bi-backspace"></i>
+                        </button>
+                    </div>
+
+                    <!-- Quick Amount -->
+                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(5000)">Rp 5.000</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(10000)">Rp 10.000</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(15000)">Rp 15.000</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(25000)">Rp 25.000</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(50000)">Rp 50.000</button>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group mt-2">
+                        <label class="form-label">Keterangan</label>
+                        <input type="text" name="keterangan" class="form-input" placeholder="Contoh: Makan Siang - Kantin">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-1" style="justify-content: center;">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Proses Pembayaran
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Info -->
+    <div>
+        <!-- NFC Scan Shortcut -->
+        <div class="scan-card mb-2" onclick="simulateNFCScan()" style="padding: 24px;">
+            <div class="scan-card-icon" style="margin-bottom: 12px;">
+                <i class="bi bi-nfc"></i>
+            </div>
+            <h3>TAP KARTU NFC</h3>
+            <p>Tempelkan Kartu Pintar untuk pembayaran cepat</p>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-clock-history" style="color: var(--gold-400);"></i> Transaksi Terakhir</h2>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% for a in anggota_data[:3] %}
+                <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
+                    <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(197, 164, 78, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="bi bi-cart-fill" style="color: var(--gold-400); font-size: 14px;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ a.nama }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Makan Siang - Kantin</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--text-accent);">-Rp 25.000</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">Hari ini</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Initialize numpad
+let currentAmount = '';
+
+function numpadPress(val) {
+    const display = document.getElementById('amountValue');
+    const hiddenInput = document.getElementById('amountInput');
+
+    if (val === 'C') {
+        currentAmount = '';
+    } else if (val === 'DEL') {
+        currentAmount = currentAmount.slice(0, -1);
+    } else {
+        if (currentAmount.length < 9) {
+            currentAmount += val;
+        }
+    }
+
+    display.textContent = currentAmount ? parseInt(currentAmount).toLocaleString('id-ID') : '0';
+    hiddenInput.value = currentAmount || '0';
+}
+
+function setQuickAmount(val) {
+    currentAmount = val.toString();
+    document.getElementById('amountValue').textContent = parseInt(currentAmount).toLocaleString('id-ID');
+    document.getElementById('amountInput').value = currentAmount;
+}
+
+// Member selection
+document.getElementById('selectAnggota').addEventListener('change', function() {
+    const info = document.getElementById('memberInfo');
+    const opt = this.options[this.selectedIndex];
+
+    if (this.value) {
+        info.style.display = 'block';
+        document.getElementById('infoNama').textContent = opt.dataset.nama;
+        document.getElementById('infoPangkat').textContent = opt.dataset.pangkat;
+        document.getElementById('infoSaldo').textContent = 'Rp ' + parseInt(opt.dataset.saldo).toLocaleString('id-ID');
+    } else {
+        info.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

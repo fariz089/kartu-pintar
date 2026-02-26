@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Total Anggota</span>
+            <div class="stat-icon green">
+                <i class="bi bi-people-fill"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ total_anggota }}</div>
+        <div class="stat-sub">Anggota terdaftar</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Kartu Aktif</span>
+            <div class="stat-icon gold">
+                <i class="bi bi-credit-card-2-front-fill"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ kartu_aktif }}</div>
+        <div class="stat-sub">Dalam kondisi baik</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Kartu Hilang</span>
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ kartu_hilang }}</div>
+        <div class="stat-sub">Perlu dilacak</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Total Saldo</span>
+            <div class="stat-icon blue">
+                <i class="bi bi-wallet-fill"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ total_saldo|rupiah }}</div>
+        <div class="stat-sub">Seluruh anggota</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="stats-grid mb-3">
+    <a href="{{ url_for('scan_page') }}" class="scan-card" style="padding: 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="scan-card-icon" style="width: 48px; height: 48px; margin: 0; border-radius: 12px; font-size: 22px;">
+                <i class="bi bi-nfc"></i>
+            </div>
+            <div style="text-align: left;">
+                <h3 style="font-size: 16px; margin: 0;">Scan NFC / QR</h3>
+                <p style="margin: 0; font-size: 12px;">Identifikasi kartu anggota</p>
+            </div>
+        </div>
+    </a>
+    <a href="{{ url_for('pembayaran') }}" class="scan-card" style="padding: 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="scan-card-icon" style="width: 48px; height: 48px; margin: 0; border-radius: 12px; font-size: 22px;">
+                <i class="bi bi-credit-card-2-front-fill"></i>
+            </div>
+            <div style="text-align: left;">
+                <h3 style="font-size: 16px; margin: 0;">Pembayaran Kantin</h3>
+                <p style="margin: 0; font-size: 12px;">Bayar menggunakan kartu</p>
+            </div>
+        </div>
+    </a>
+    <a href="{{ url_for('lacak_kartu') }}" class="scan-card" style="padding: 20px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="scan-card-icon" style="width: 48px; height: 48px; margin: 0; border-radius: 12px; font-size: 22px;">
+                <i class="bi bi-geo-alt-fill"></i>
+            </div>
+            <div style="text-align: left;">
+                <h3 style="font-size: 16px; margin: 0;">Lacak Kartu</h3>
+                <p style="margin: 0; font-size: 12px;">Temukan kartu yang hilang</p>
+            </div>
+        </div>
+    </a>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- Recent Transactions -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-receipt" style="color: var(--gold-400); margin-right: 8px;"></i> Transaksi Terbaru</h2>
+            <a href="{{ url_for('transaksi') }}" class="btn btn-sm btn-secondary">Lihat Semua</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Jenis</th>
+                        <th>Nominal</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transaksi_terbaru %}
+                    <tr>
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ t.nama.split(' ')[0] }} {{ t.nama.split(' ')[-1] }}</td>
+                        <td>
+                            <span class="badge badge-{{ t.jenis|lower }}">{{ t.jenis }}</span>
+                        </td>
+                        <td style="font-weight: 600; color: {% if t.jenis == 'Top Up' %}#6ecc6e{% else %}var(--text-accent){% endif %};">
+                            {% if t.jenis == 'Top Up' %}+{% else %}-{% endif %}{{ t.nominal|rupiah }}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Member List -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-people-fill" style="color: var(--gold-400); margin-right: 8px;"></i> Daftar Anggota</h2>
+            <a href="{{ url_for('anggota_list') }}" class="btn btn-sm btn-secondary">Lihat Semua</a>
+        </div>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Pangkat</th>
+                        <th>Saldo</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in anggota_data %}
+                    <tr style="cursor: pointer;" onclick="window.location='{{ url_for('anggota_detail', anggota_id=a.id) }}'">
+                        <td style="color: var(--text-primary); font-weight: 500;">{{ a.nama }}</td>
+                        <td>{{ a.pangkat }}</td>
+                        <td style="color: var(--text-accent); font-weight: 600;">{{ a.saldo|rupiah }}</td>
+                        <td>
+                            <span class="badge badge-{{ a.status_kartu|lower }}">
+                                <i class="bi bi-{% if a.status_kartu == 'Aktif' %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
+                                {{ a.status_kartu }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

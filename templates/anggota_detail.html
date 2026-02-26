@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ anggota.nama }}{% endblock %}
+{% block page_title %}Detail Anggota{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <a href="{{ url_for('anggota_list') }}" class="btn btn-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Kembali
+    </a>
+    {% if session.get('role') == 'admin' %}
+    <div style="display: flex; gap: 8px;">
+        <a href="{{ url_for('anggota_edit', anggota_id=anggota.id) }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-pencil"></i> Edit Data
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="detail-grid">
+    <!-- Left: ID Card -->
+    <div>
+        <div class="id-card">
+            <div class="id-card-header">
+                <h3>KARTU PINTAR</h3>
+                <p>TNI AD — Poltekkad</p>
+            </div>
+            <div class="id-card-body">
+                <div class="id-card-photo">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                <div class="id-card-info">
+                    <div class="info-row">
+                        <div class="info-label">Nama</div>
+                        <div class="info-value">{{ anggota.nama }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">NRP</div>
+                        <div class="info-value">{{ anggota.nrp }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Pangkat</div>
+                        <div class="info-value">{{ anggota.pangkat }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Gol. Darah</div>
+                        <div class="info-value">{{ anggota.golongan_darah }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="id-card-footer">
+                <div class="id-card-nfc">
+                    <i class="bi bi-nfc"></i>
+                    <span>NFC: {{ anggota.nfc_uid }}</span>
+                </div>
+                <div style="width: 50px; height: 50px; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                    <i class="bi bi-qr-code" style="font-size: 32px; color: #000;"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saldo -->
+        <div class="saldo-display mt-2">
+            <label>Saldo Kartu Pintar</label>
+            <div class="saldo-amount">{{ anggota.saldo|rupiah }}</div>
+        </div>
+
+        <!-- Status -->
+        <div class="mt-2" style="text-align: center;">
+            <span class="badge badge-{{ anggota.status_kartu|lower }}" style="font-size: 13px; padding: 6px 16px;">
+                <i class="bi bi-{% if anggota.status_kartu == 'Aktif' %}check-circle-fill{% else %}exclamation-triangle-fill{% endif %}"></i>
+                Status: {{ anggota.status_kartu }}
+            </span>
+        </div>
+
+        <!-- Location -->
+        <div class="card mt-2">
+            <div class="card-header">
+                <h2><i class="bi bi-geo-alt-fill" style="color: var(--gold-400);"></i> Lokasi Terakhir</h2>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="location-pin {{ anggota.status_kartu|lower }}">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 14px; color: var(--text-primary);">{{ anggota.lokasi_terakhir.lokasi }}</h4>
+                        <p style="font-size: 12px; color: var(--text-muted);">{{ anggota.lokasi_terakhir.waktu|datetime_format }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Details -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-person-badge-fill" style="color: var(--gold-400);"></i> Informasi Pribadi</h2>
+            </div>
+            <div class="card-body">
+                <div class="detail-info-grid">
+                    <div class="detail-field">
+                        <label>ID Kartu</label>
+                        <span>{{ anggota.id }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>NRP</label>
+                        <span>{{ anggota.nrp }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Nama Lengkap</label>
+                        <span>{{ anggota.nama }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Pangkat</label>
+                        <span>{{ anggota.pangkat }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Satuan</label>
+                        <span>{{ anggota.satuan }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Jabatan</label>
+                        <span>{{ anggota.jabatan }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Jurusan</label>
+                        <span>{{ anggota.jurusan }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Agama</label>
+                        <span>{{ anggota.agama }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Tempat Lahir</label>
+                        <span>{{ anggota.tempat_lahir }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Tanggal Lahir</label>
+                        <span>{{ anggota.tanggal_lahir }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>Golongan Darah</label>
+                        <span>{{ anggota.golongan_darah }}</span>
+                    </div>
+                    <div class="detail-field">
+                        <label>NFC UID</label>
+                        <span style="color: var(--text-accent);">{{ anggota.nfc_uid }}</span>
+                    </div>
+                </div>
+                <div class="detail-field mt-2">
+                    <label>Alamat</label>
+                    <span>{{ anggota.alamat }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-receipt" style="color: var(--gold-400);"></i> Riwayat Transaksi</h2>
+            </div>
+            {% if transaksi %}
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Jenis</th>
+                            <th>Keterangan</th>
+                            <th>Nominal</th>
+                            <th>Waktu</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transaksi %}
+                        <tr>
+                            <td><code style="font-size: 11px; color: var(--text-muted);">{{ t.id }}</code></td>
+                            <td><span class="badge badge-{{ t.jenis|lower }}">{{ t.jenis }}</span></td>
+                            <td>{{ t.keterangan }}</td>
+                            <td style="font-weight: 600; color: {% if t.jenis == 'Top Up' %}#6ecc6e{% else %}var(--text-accent){% endif %};">
+                                {% if t.jenis == 'Top Up' %}+{% else %}-{% endif %}{{ t.nominal|rupiah }}
+                            </td>
+                            <td style="font-size: 12px;">{{ t.waktu|datetime_format }}</td>
+                            <td><span class="badge badge-{{ t.status|lower }}">{{ t.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-receipt"></i>
+                <h3>Belum Ada Transaksi</h3>
+                <p>Belum ada riwayat transaksi untuk anggota ini.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

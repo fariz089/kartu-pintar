@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Data Anggota{% endblock %}
+{% block page_title %}Data Anggota{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div>
+        <p class="text-muted" style="font-size: 14px;">Kelola data anggota pemegang Kartu Pintar</p>
+    </div>
+    {% if session.get('role') == 'admin' %}
+    <a href="{{ url_for('anggota_tambah') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i>
+        Tambah Anggota
+    </a>
+    {% endif %}
+</div>
+
+<!-- Search Bar -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 14px 20px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="flex: 1; position: relative;">
+                <i class="bi bi-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <input type="text" id="searchInput" class="form-input" style="padding-left: 40px;" placeholder="Cari berdasarkan nama, NRP, pangkat...">
+            </div>
+            <select class="form-select" style="width: 180px;" id="statusFilter">
+                <option value="">Semua Status</option>
+                <option value="Aktif">Aktif</option>
+                <option value="Hilang">Hilang</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-header">
+        <h2>
+            <i class="bi bi-people-fill" style="color: var(--gold-400); margin-right: 8px;"></i>
+            {{ anggota_data|length }} Anggota Terdaftar
+        </h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table" id="anggotaTable">
+            <thead>
+                <tr>
+                    <th>ID Kartu</th>
+                    <th>Nama Lengkap</th>
+                    <th>Pangkat</th>
+                    <th>Jabatan</th>
+                    <th>Jurusan</th>
+                    <th>Saldo</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in anggota_data %}
+                <tr class="anggota-row" data-nama="{{ a.nama|lower }}" data-nrp="{{ a.nrp }}" data-pangkat="{{ a.pangkat|lower }}" data-status="{{ a.status_kartu }}">
+                    <td>
+                        <code style="color: var(--text-accent); font-size: 12px; background: var(--bg-secondary); padding: 2px 8px; border-radius: 4px;">{{ a.id }}</code>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold-400); flex-shrink: 0;">
+                                {{ a.nama[0] }}
+                            </div>
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ a.nama }}</span>
+                        </div>
+                    </td>
+                    <td>{{ a.pangkat }}</td>
+                    <td>{{ a.jabatan }}</td>
+                    <td>{{ a.jurusan }}</td>
+                    <td style="font-weight: 600; color: var(--text-accent);">{{ a.saldo|rupiah }}</td>
+                    <td>
+                        <span class="badge badge-{{ a.status_kartu|lower }}">
+                            <i class="bi bi-{% if a.status_kartu == 'Aktif' %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
+                            {{ a.status_kartu }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 6px;">
+                            <a href="{{ url_for('anggota_detail', anggota_id=a.id) }}" class="btn btn-sm btn-secondary" title="Lihat Detail">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if session.get('role') == 'admin' %}
+                            <a href="{{ url_for('anggota_edit', anggota_id=a.id) }}" class="btn btn-sm btn-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const rows = document.querySelectorAll('.anggota-row');
+
+    function filterRows() {
+        const q = searchInput.value.toLowerCase();
+        const status = statusFilter.value;
+
+        rows.forEach(row => {
+            const nama = row.dataset.nama;
+            const nrp = row.dataset.nrp;
+            const pangkat = row.dataset.pangkat;
+            const rowStatus = row.dataset.status;
+
+            const matchSearch = !q || nama.includes(q) || nrp.includes(q) || pangkat.includes(q);
+            const matchStatus = !status || rowStatus === status;
+
+            row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterRows);
+    statusFilter.addEventListener('change', filterRows);
+});
+</script>
+{% endblock %}
