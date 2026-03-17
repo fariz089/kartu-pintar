@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Profil Saya{% endblock %}
+{% block page_title %}Profil Saya{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Informasi profil dan identitas kartu Anda</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <!-- User Account Info -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-person-circle" style="color: var(--gold-400);"></i> Akun Saya</h2>
+        </div>
+        <div class="card-body" style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--olive-700); display: flex; align-items: center; justify-content: center; border: 2px solid var(--gold-400);">
+                    <i class="bi bi-person-fill" style="font-size: 28px; color: var(--gold-400);"></i>
+                </div>
+                <div>
+                    <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">{{ user.nama }}</div>
+                    <div style="font-size: 12px; color: var(--gold-400); font-weight: 600; letter-spacing: 2px;">{{ user.role|upper }}</div>
+                </div>
+            </div>
+
+            <table style="width: 100%; font-size: 14px;">
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 10px 0; color: var(--text-muted); width: 120px;">Username</td>
+                    <td style="padding: 10px 0; color: var(--text-primary); font-weight: 500;">{{ user.username }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 10px 0; color: var(--text-muted);">Email</td>
+                    <td style="padding: 10px 0; color: var(--text-primary); font-weight: 500;">{{ user.email or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 10px 0; color: var(--text-muted);">Status</td>
+                    <td style="padding: 10px 0;">
+                        <span class="badge badge-berhasil">Aktif</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: var(--text-muted);">Terdaftar</td>
+                    <td style="padding: 10px 0; color: var(--text-primary); font-weight: 500;">{{ user.created_at|datetime_format }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Anggota Identity Card -->
+    {% if anggota %}
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-person-badge-fill" style="color: var(--gold-400);"></i> Identitas Kartu</h2>
+        </div>
+        <div class="card-body" style="padding: 20px;">
+            <!-- Mini Card Preview -->
+            <div style="background: linear-gradient(135deg, var(--olive-800), var(--olive-700)); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--gold-400); position: relative; overflow: hidden;">
+                <div style="position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; background: var(--gold-400); opacity: 0.1;"></div>
+                <div style="font-size: 10px; color: var(--gold-400); letter-spacing: 3px; font-weight: 600;">KARTU PINTAR — POLTEKKAD</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 8px;">{{ anggota.nama }}</div>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">{{ anggota.pangkat }} — NRP {{ anggota.nrp }}</div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px;">
+                    <div>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID KARTU</div>
+                        <div style="font-size: 14px; color: var(--gold-400); font-weight: 600; font-family: monospace;">{{ anggota.id }}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 11px; color: var(--text-muted);">SALDO</div>
+                        <div style="font-size: 18px; color: var(--gold-400); font-weight: 700;">{{ anggota.saldo|rupiah }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <table style="width: 100%; font-size: 14px;">
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted); width: 130px;">Satuan</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.satuan }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Jabatan</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.jabatan or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Jurusan</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.jurusan or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Tempat Lahir</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.tempat_lahir or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Tanggal Lahir</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.tanggal_lahir or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Gol. Darah</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.golongan_darah or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">Agama</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.agama or '-' }}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted);">No. Telepon</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.no_telepon or '-' }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: var(--text-muted);">Status Kartu</td>
+                    <td style="padding: 8px 0;">
+                        <span class="badge badge-berhasil">{{ anggota.status_kartu }}</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-person-badge-fill" style="color: var(--gold-400);"></i> Identitas Kartu</h2>
+        </div>
+        <div class="card-body" style="padding: 40px; text-align: center;">
+            <i class="bi bi-exclamation-circle" style="font-size: 48px; color: var(--text-muted);"></i>
+            <p style="color: var(--text-muted); margin-top: 12px;">Akun Anda belum terhubung dengan data anggota.<br>Hubungi administrator.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

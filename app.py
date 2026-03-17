@@ -625,6 +625,8 @@ def register_routes(app):
     @login_required
     def transaksi():
         role = session.get('role')
+        jenis_filter = request.args.get('jenis', '').strip()
+
         if role == 'user':
             # User: only own transactions (linked through anggota)
             user = User.query.get(session['user_id'])
@@ -643,11 +645,35 @@ def register_routes(app):
                 transaksi_data=[trx_to_dict(t) for t in all_trx],
                 page_title='Riwayat Penjualan Kantin')
         else:
-            # Admin: all transactions
-            all_trx = Transaksi.query.order_by(Transaksi.created_at.desc()).all()
+            # Admin: all or filtered by jenis
+            query = Transaksi.query
+            if jenis_filter:
+                query = query.filter_by(jenis=jenis_filter)
+
+            page_titles = {
+                'Pembelian': 'Riwayat Penjualan',
+                'Top Up': 'Riwayat Pengisian Saldo',
+            }
+            title = page_titles.get(jenis_filter, 'Semua Transaksi')
+
+            all_trx = query.order_by(Transaksi.created_at.desc()).all()
             return render_template('transaksi.html',
                 transaksi_data=[trx_to_dict(t) for t in all_trx],
-                page_title='Riwayat Transaksi')
+                page_title=title)
+
+
+    # --- PROFILE (User) ---
+
+    @app.route('/profile')
+    @login_required
+    def profile():
+        user = User.query.get(session['user_id'])
+        anggota = None
+        if user and user.anggota_id:
+            anggota_obj = Anggota.query.get(user.anggota_id)
+            if anggota_obj:
+                anggota = anggota_to_dict(anggota_obj)
+        return render_template('profile.html', user=user, anggota=anggota)
 
 
 # ============================================================
@@ -689,6 +715,26 @@ def register_api_routes(app):
         if user.anggota:
             user_data['anggota'] = user.anggota.to_dict()
         return jsonify({'success': True, 'data': user_data})
+
+    @app.route('/api/auth/change-password', methods=['POST'])
+    @jwt_required
+    def api_change_password():
+        """Change password for current user"""
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        old_password = data.get('old_password', '')
+        new_password = data.get('new_password', '')
+        if not old_password or not new_password:
+            return jsonify({'success': False, 'message': 'Password lama dan baru harus diisi'}), 400
+        if len(new_password) < 4:
+            return jsonify({'success': False, 'message': 'Password baru minimal 4 karakter'}), 400
+        user = User.query.get(request.current_user_id)
+        if not user or not user.check_password(old_password):
+            return jsonify({'success': False, 'message': 'Password lama salah'}), 400
+        user.set_password(new_password)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Password berhasil diubah'})
 
     @app.route('/api/anggota', methods=['GET'])
     @jwt_required
@@ -835,13 +881,33 @@ def register_api_routes(app):
         kartu_id = request.args.get('kartu_id', '').strip()
         jenis = request.args.get('jenis', '').strip()
         limit = request.args.get('limit', 50, type=int)
+        role = getattr(request, 'current_role', None)
+
         query = Transaksi.query
-        if kartu_id:
-            anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
-            if anggota:
-                query = query.filter_by(anggota_id=anggota.id)
-        if jenis:
-            query = query.filter_by(jenis=jenis)
+
+        if role == 'user':
+            # User: only own transactions
+            user = User.query.get(request.current_user_id)
+            if user and user.anggota_id:
+                anggota = Anggota.query.get(user.anggota_id)
+                if anggota:
+                    query = query.filter_by(anggota_id=anggota.id)
+                else:
+                    return jsonify({'success': True, 'data': []})
+            else:
+                return jsonify({'success': True, 'data': []})
+        elif role == 'operator_kantin':
+            # Kantin: only Pembelian
+            query = query.filter_by(jenis='Pembelian')
+        else:
+            # Admin: can filter by kartu_id and jenis
+            if kartu_id:
+                anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+                if anggota:
+                    query = query.filter_by(anggota_id=anggota.id)
+            if jenis:
+                query = query.filter_by(jenis=jenis)
+
         result = query.order_by(Transaksi.created_at.desc()).limit(limit).all()
         return jsonify({'success': True, 'data': [t.to_dict() for t in result]})
 

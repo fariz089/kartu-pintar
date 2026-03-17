@@ -52,9 +52,13 @@
                 <tr class="trx-row" data-nama="{{ t.nama|lower }}" data-jenis="{{ t.jenis }}" data-status="{{ t.status }}">
                     <td><code style="font-size: 11px; color: var(--text-muted);">{{ t.id }}</code></td>
                     <td>
+                        {% if session.get('role') == 'admin' %}
                         <a href="{{ url_for('anggota_detail', anggota_id=t.anggota_id) }}" style="color: var(--text-primary); font-weight: 600;">
                             {{ t.nama }}
                         </a>
+                        {% else %}
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ t.nama }}</span>
+                        {% endif %}
                     </td>
                     <td><span class="badge badge-{{ t.jenis|lower|replace(' ', '') }}">{{ t.jenis }}</span></td>
                     <td>{{ t.keterangan }}</td>

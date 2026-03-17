@@ -64,9 +64,17 @@
                     <i class="bi bi-wallet-fill"></i>
                     <span>Top Up Saldo</span>
                 </a>
-                <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
+                <a href="{{ url_for('transaksi', jenis='Pembelian') }}" class="nav-link {% if request.endpoint == 'transaksi' and request.args.get('jenis') == 'Pembelian' %}active{% endif %}">
+                    <i class="bi bi-bag-fill"></i>
+                    <span>Riwayat Penjualan</span>
+                </a>
+                <a href="{{ url_for('transaksi', jenis='Top Up') }}" class="nav-link {% if request.endpoint == 'transaksi' and request.args.get('jenis') == 'Top Up' %}active{% endif %}">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Riwayat Pengisian Saldo</span>
+                </a>
+                <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' and not request.args.get('jenis') %}active{% endif %}">
                     <i class="bi bi-receipt"></i>
-                    <span>Riwayat Transaksi</span>
+                    <span>Semua Transaksi</span>
                 </a>
             </div>
             <div class="nav-section">
@@ -99,7 +107,7 @@
                 </a>
             </div>
 
-            {# === USER: Scan + Own transactions === #}
+            {# === USER: Scan + Own transactions + Profile === #}
             {% else %}
             <div class="nav-section">
                 <span class="nav-section-title">MENU</span>
@@ -110,6 +118,13 @@
                 <a href="{{ url_for('transaksi') }}" class="nav-link {% if request.endpoint == 'transaksi' %}active{% endif %}">
                     <i class="bi bi-receipt"></i>
                     <span>Riwayat Transaksi Saya</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-title">AKUN</span>
+                <a href="{{ url_for('profile') }}" class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">
+                    <i class="bi bi-person-fill"></i>
+                    <span>Profil Saya</span>
                 </a>
             </div>
             {% endif %}
