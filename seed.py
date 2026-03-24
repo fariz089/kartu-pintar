@@ -52,6 +52,7 @@ def seed_database():
             alamat='Jl. Gatot Subroto No.96, Bandung',
             no_telepon='081234567890',
             nfc_uid='A1B2C3D4', qr_data='KP-2025-001',
+            mili_id='FZDc3ImYoVWNm5kNwUTT5IjM',
             saldo=750000, status_kartu='Aktif',
             lokasi_lat=-6.8927, lokasi_lng=107.6100,
             lokasi_nama='Kantin Poltekkad',

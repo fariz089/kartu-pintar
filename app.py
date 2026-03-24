@@ -758,10 +758,44 @@ def register_api_routes(app):
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
 
-    @app.route('/api/scan/nfc/<nfc_uid>', methods=['GET'])
+    # --- HELPER: Extract MiLi Card ID from URL ---
+    def extract_mili_id(raw_data):
+        if not raw_data:
+            return raw_data
+        data = raw_data.strip()
+        # Handle semua URL MiLi Card (micard.mymili.com, rd.mymili.com, dll)
+        if '/info/' in data:
+            parts = data.split('/info/')
+            if len(parts) > 1:
+                return parts[1].split('?')[0].split('#')[0].strip()
+        return data
+
+    def find_anggota_by_scan(scan_data, scan_type='NFC'):
+        """
+        Unified lookup: try multiple fields to find anggota.
+        MiLi Card bisa menghasilkan URL, NFC UID, atau kartu_id.
+        Kita coba semua kemungkinan.
+        """
+        cleaned = extract_mili_id(scan_data)
+        raw = scan_data.strip()
+
+        # Try all possible lookups
+        a = Anggota.query.filter(db.or_(
+            Anggota.nfc_uid == raw,
+            Anggota.nfc_uid == cleaned,
+            Anggota.qr_data == raw,
+            Anggota.qr_data == cleaned,
+            Anggota.kartu_id == raw,
+            Anggota.kartu_id == cleaned,
+            Anggota.mili_id == cleaned,
+        )).first()
+
+        return a
+
+    @app.route('/api/scan/nfc/<path:nfc_uid>', methods=['GET'])
     @jwt_required
     def api_scan_nfc(nfc_uid):
-        a = Anggota.query.filter_by(nfc_uid=nfc_uid).first()
+        a = find_anggota_by_scan(nfc_uid, 'NFC')
         if a:
             a.lokasi_waktu = datetime.now()
             db.session.add(LokasiHistory(
@@ -777,12 +811,33 @@ def register_api_routes(app):
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'Kartu NFC tidak terdaftar'}), 404
 
-    @app.route('/api/scan/qr/<qr_data>', methods=['GET'])
+    @app.route('/api/scan/qr', methods=['POST'])
+    @jwt_required
+    def api_scan_qr_post():
+        """POST version: handle full URLs from MiLi QR that contain slashes"""
+        data = request.get_json()
+        if not data or not data.get('qr_data'):
+            return jsonify({'success': False, 'message': 'qr_data required'}), 400
+        qr_data = data['qr_data']
+        a = find_anggota_by_scan(qr_data, 'QR')
+        if a:
+            a.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=a.id, latitude=a.lokasi_lat or -6.8927,
+                longitude=a.lokasi_lng or 107.6100,
+                lokasi_nama='QR Scan', sumber='QR',
+                scanned_by_user_id=request.current_user_id,
+            ))
+            db.session.commit()
+            if getattr(request, 'current_role', None) == 'user':
+                return jsonify({'success': True, 'data': a.to_identitas_dict()})
+            return jsonify({'success': True, 'data': a.to_dict()})
+        return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
+
+    @app.route('/api/scan/qr/<path:qr_data>', methods=['GET'])
     @jwt_required
     def api_scan_qr(qr_data):
-        a = Anggota.query.filter(
-            db.or_(Anggota.qr_data == qr_data, Anggota.kartu_id == qr_data)
-        ).first()
+        a = find_anggota_by_scan(qr_data, 'QR')
         if a:
             a.lokasi_waktu = datetime.now()
             db.session.add(LokasiHistory(
@@ -943,6 +998,96 @@ def register_api_routes(app):
             'total_saldo': db.session.query(db.func.coalesce(db.func.sum(Anggota.saldo), 0)).scalar(),
             'total_transaksi': Transaksi.query.count(),
         }})
+
+    # ============================================================
+    # MILI CARD INTEGRATION APIs
+    # ============================================================
+
+    @app.route('/api/anggota/<anggota_id>/update-card', methods=['PUT'])
+    @jwt_admin_required
+    def api_update_card_identifiers(anggota_id):
+        """Register MiLi Card: update NFC UID, QR data, dan MiLi ID untuk anggota"""
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
+
+        nfc_uid = data.get('nfc_uid', '').strip()
+        qr_data = data.get('qr_data', '').strip()
+        mili_id = data.get('mili_id', '').strip()
+
+        if nfc_uid:
+            existing = Anggota.query.filter(Anggota.nfc_uid == nfc_uid, Anggota.id != a.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'NFC UID sudah dipakai oleh {existing.nama}'}), 400
+            a.nfc_uid = nfc_uid
+
+        if qr_data:
+            existing = Anggota.query.filter(Anggota.qr_data == qr_data, Anggota.id != a.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'QR data sudah dipakai oleh {existing.nama}'}), 400
+            a.qr_data = qr_data
+
+        if mili_id:
+            existing = Anggota.query.filter(Anggota.mili_id == mili_id, Anggota.id != a.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': f'MiLi ID sudah dipakai oleh {existing.nama}'}), 400
+            a.mili_id = mili_id
+
+        try:
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'MiLi Card berhasil didaftarkan', 'data': {
+                'kartu_id': a.kartu_id, 'nama': a.nama,
+                'nfc_uid': a.nfc_uid, 'qr_data': a.qr_data, 'mili_id': a.mili_id,
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/anggota/<anggota_id>/update-location', methods=['POST'])
+    @jwt_required
+    def api_update_anggota_location(anggota_id):
+        """Update lokasi anggota dari GPS HP atau Google Find Hub"""
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
+
+        lat = data.get('latitude')
+        lng = data.get('longitude')
+        lokasi_nama = data.get('lokasi_nama', 'GPS Update')
+        sumber = data.get('sumber', 'GPS')
+
+        if lat is None or lng is None:
+            return jsonify({'success': False, 'message': 'latitude dan longitude required'}), 400
+
+        try:
+            a.lokasi_lat = float(lat)
+            a.lokasi_lng = float(lng)
+            a.lokasi_nama = lokasi_nama
+            a.lokasi_waktu = datetime.now()
+
+            db.session.add(LokasiHistory(
+                anggota_id=a.id,
+                latitude=float(lat), longitude=float(lng),
+                lokasi_nama=lokasi_nama, sumber=sumber,
+                scanned_by_user_id=request.current_user_id,
+            ))
+            db.session.commit()
+
+            return jsonify({'success': True, 'message': 'Location updated', 'data': {
+                'kartu_id': a.kartu_id, 'nama': a.nama,
+                'lokasi': {'lat': a.lokasi_lat, 'lng': a.lokasi_lng, 'nama': a.lokasi_nama},
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ============================================================

@@ -78,6 +78,9 @@ class Anggota(db.Model):
     nfc_uid = db.Column(db.String(50), unique=True, nullable=True, index=True)
     qr_data = db.Column(db.String(50), unique=True, nullable=True, index=True)
 
+    # MiLi Card ID (extracted from https://micard.mymili.com/info/{mili_id})
+    mili_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
+
     # Saldo (e-wallet)
     saldo = db.Column(db.BigInteger, default=0, nullable=False)
 
@@ -114,6 +117,7 @@ class Anggota(db.Model):
             'foto': self.foto,
             'nfc_uid': self.nfc_uid,
             'qr_data': self.qr_data,
+            'mili_id': self.mili_id,
             'status_kartu': self.status_kartu,
             'lokasi_terakhir': {
                 'lat': self.lokasi_lat,
