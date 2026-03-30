@@ -591,8 +591,6 @@ def register_routes(app):
             flash(f'Gagal: {str(e)}', 'danger')
         return redirect(url_for('topup'))
 
-    # --- LACAK KARTU ---
-
     # --- LACAK KARTU (Admin only) ---
 
     @app.route('/lacak')
@@ -628,7 +626,6 @@ def register_routes(app):
         jenis_filter = request.args.get('jenis', '').strip()
 
         if role == 'user':
-            # User: only own transactions (linked through anggota)
             user = User.query.get(session['user_id'])
             if user and user.anggota_id:
                 anggota = Anggota.query.get(user.anggota_id)
@@ -639,28 +636,23 @@ def register_routes(app):
                         page_title='Riwayat Transaksi Saya')
             return render_template('transaksi.html', transaksi_data=[], page_title='Riwayat Transaksi Saya')
         elif role == 'operator_kantin':
-            # Operator: only Pembelian (sales)
             all_trx = Transaksi.query.filter_by(jenis='Pembelian').order_by(Transaksi.created_at.desc()).all()
             return render_template('transaksi.html',
                 transaksi_data=[trx_to_dict(t) for t in all_trx],
                 page_title='Riwayat Penjualan Kantin')
         else:
-            # Admin: all or filtered by jenis
             query = Transaksi.query
             if jenis_filter:
                 query = query.filter_by(jenis=jenis_filter)
-
             page_titles = {
                 'Pembelian': 'Riwayat Penjualan',
                 'Top Up': 'Riwayat Pengisian Saldo',
             }
             title = page_titles.get(jenis_filter, 'Semua Transaksi')
-
             all_trx = query.order_by(Transaksi.created_at.desc()).all()
             return render_template('transaksi.html',
                 transaksi_data=[trx_to_dict(t) for t in all_trx],
                 page_title=title)
-
 
     # --- PROFILE (User) ---
 
@@ -691,12 +683,10 @@ def register_api_routes(app):
         if user and user.check_password(data.get('password', '')):
             if not user.is_active:
                 return jsonify({'success': False, 'message': 'Akun dinonaktifkan'}), 403
-
             token = generate_jwt_token(user)
             user_data = user.to_dict()
             if user.anggota:
                 user_data['anggota'] = user.anggota.to_dict()
-
             return jsonify({
                 'success': True,
                 'token': token,
@@ -707,7 +697,6 @@ def register_api_routes(app):
     @app.route('/api/auth/me', methods=['GET'])
     @jwt_required
     def api_me():
-        """Get current user info from token"""
         user = User.query.get(request.current_user_id)
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
@@ -719,7 +708,6 @@ def register_api_routes(app):
     @app.route('/api/auth/change-password', methods=['POST'])
     @jwt_required
     def api_change_password():
-        """Change password for current user"""
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'Request body required'}), 400
@@ -763,7 +751,6 @@ def register_api_routes(app):
         if not raw_data:
             return raw_data
         data = raw_data.strip()
-        # Handle semua URL MiLi Card (micard.mymili.com, rd.mymili.com, dll)
         if '/info/' in data:
             parts = data.split('/info/')
             if len(parts) > 1:
@@ -771,15 +758,8 @@ def register_api_routes(app):
         return data
 
     def find_anggota_by_scan(scan_data, scan_type='NFC'):
-        """
-        Unified lookup: try multiple fields to find anggota.
-        MiLi Card bisa menghasilkan URL, NFC UID, atau kartu_id.
-        Kita coba semua kemungkinan.
-        """
         cleaned = extract_mili_id(scan_data)
         raw = scan_data.strip()
-
-        # Try all possible lookups
         a = Anggota.query.filter(db.or_(
             Anggota.nfc_uid == raw,
             Anggota.nfc_uid == cleaned,
@@ -789,7 +769,6 @@ def register_api_routes(app):
             Anggota.kartu_id == cleaned,
             Anggota.mili_id == cleaned,
         )).first()
-
         return a
 
     @app.route('/api/scan/nfc/<path:nfc_uid>', methods=['GET'])
@@ -805,7 +784,6 @@ def register_api_routes(app):
                 scanned_by_user_id=request.current_user_id,
             ))
             db.session.commit()
-            # User role: limited info (no saldo)
             if getattr(request, 'current_role', None) == 'user':
                 return jsonify({'success': True, 'data': a.to_identitas_dict()})
             return jsonify({'success': True, 'data': a.to_dict()})
@@ -814,7 +792,6 @@ def register_api_routes(app):
     @app.route('/api/scan/qr', methods=['POST'])
     @jwt_required
     def api_scan_qr_post():
-        """POST version: handle full URLs from MiLi QR that contain slashes"""
         data = request.get_json()
         if not data or not data.get('qr_data'):
             return jsonify({'success': False, 'message': 'qr_data required'}), 400
@@ -862,10 +839,8 @@ def register_api_routes(app):
         nominal = int(data.get('nominal', 0))
         keterangan = data.get('keterangan', 'Pembelian di Kantin')
         metode = data.get('metode', 'NFC')
-
         if nominal <= 0:
             return jsonify({'success': False, 'message': 'Nominal harus > 0'}), 400
-
         anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
         if not anggota:
             return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
@@ -873,7 +848,6 @@ def register_api_routes(app):
             return jsonify({'success': False, 'message': 'Kartu tidak aktif'}), 400
         if anggota.saldo < nominal:
             return jsonify({'success': False, 'message': 'Saldo tidak cukup', 'saldo': anggota.saldo}), 400
-
         try:
             saldo_sebelum = anggota.saldo
             anggota.saldo -= nominal
@@ -903,14 +877,11 @@ def register_api_routes(app):
             return jsonify({'success': False, 'message': 'Request body required'}), 400
         kartu_id = data.get('kartu_id', '').strip()
         nominal = int(data.get('nominal', 0))
-
         if nominal <= 0 or nominal > 5000000:
             return jsonify({'success': False, 'message': 'Nominal: 1 - 5.000.000'}), 400
-
         anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
         if not anggota:
             return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
-
         try:
             saldo_sebelum = anggota.saldo
             anggota.saldo += nominal
@@ -937,11 +908,8 @@ def register_api_routes(app):
         jenis = request.args.get('jenis', '').strip()
         limit = request.args.get('limit', 50, type=int)
         role = getattr(request, 'current_role', None)
-
         query = Transaksi.query
-
         if role == 'user':
-            # User: only own transactions
             user = User.query.get(request.current_user_id)
             if user and user.anggota_id:
                 anggota = Anggota.query.get(user.anggota_id)
@@ -952,17 +920,14 @@ def register_api_routes(app):
             else:
                 return jsonify({'success': True, 'data': []})
         elif role == 'operator_kantin':
-            # Kantin: only Pembelian
             query = query.filter_by(jenis='Pembelian')
         else:
-            # Admin: can filter by kartu_id and jenis
             if kartu_id:
                 anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
                 if anggota:
                     query = query.filter_by(anggota_id=anggota.id)
             if jenis:
                 query = query.filter_by(jenis=jenis)
-
         result = query.order_by(Transaksi.created_at.desc()).limit(limit).all()
         return jsonify({'success': True, 'data': [t.to_dict() for t in result]})
 
@@ -1006,37 +971,30 @@ def register_api_routes(app):
     @app.route('/api/anggota/<anggota_id>/update-card', methods=['PUT'])
     @jwt_admin_required
     def api_update_card_identifiers(anggota_id):
-        """Register MiLi Card: update NFC UID, QR data, dan MiLi ID untuk anggota"""
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'Request body required'}), 400
-
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
             return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
-
         nfc_uid = data.get('nfc_uid', '').strip()
         qr_data = data.get('qr_data', '').strip()
         mili_id = data.get('mili_id', '').strip()
-
         if nfc_uid:
             existing = Anggota.query.filter(Anggota.nfc_uid == nfc_uid, Anggota.id != a.id).first()
             if existing:
                 return jsonify({'success': False, 'message': f'NFC UID sudah dipakai oleh {existing.nama}'}), 400
             a.nfc_uid = nfc_uid
-
         if qr_data:
             existing = Anggota.query.filter(Anggota.qr_data == qr_data, Anggota.id != a.id).first()
             if existing:
                 return jsonify({'success': False, 'message': f'QR data sudah dipakai oleh {existing.nama}'}), 400
             a.qr_data = qr_data
-
         if mili_id:
             existing = Anggota.query.filter(Anggota.mili_id == mili_id, Anggota.id != a.id).first()
             if existing:
                 return jsonify({'success': False, 'message': f'MiLi ID sudah dipakai oleh {existing.nama}'}), 400
             a.mili_id = mili_id
-
         try:
             db.session.commit()
             return jsonify({'success': True, 'message': 'MiLi Card berhasil didaftarkan', 'data': {
@@ -1050,29 +1008,23 @@ def register_api_routes(app):
     @app.route('/api/anggota/<anggota_id>/update-location', methods=['POST'])
     @jwt_required
     def api_update_anggota_location(anggota_id):
-        """Update lokasi anggota dari GPS HP atau Google Find Hub"""
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'Request body required'}), 400
-
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
             return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
-
         lat = data.get('latitude')
         lng = data.get('longitude')
         lokasi_nama = data.get('lokasi_nama', 'GPS Update')
         sumber = data.get('sumber', 'GPS')
-
         if lat is None or lng is None:
             return jsonify({'success': False, 'message': 'latitude dan longitude required'}), 400
-
         try:
             a.lokasi_lat = float(lat)
             a.lokasi_lng = float(lng)
             a.lokasi_nama = lokasi_nama
             a.lokasi_waktu = datetime.now()
-
             db.session.add(LokasiHistory(
                 anggota_id=a.id,
                 latitude=float(lat), longitude=float(lng),
@@ -1080,7 +1032,6 @@ def register_api_routes(app):
                 scanned_by_user_id=request.current_user_id,
             ))
             db.session.commit()
-
             return jsonify({'success': True, 'message': 'Location updated', 'data': {
                 'kartu_id': a.kartu_id, 'nama': a.nama,
                 'lokasi': {'lat': a.lokasi_lat, 'lng': a.lokasi_lng, 'nama': a.lokasi_nama},
@@ -1115,7 +1066,24 @@ def register_error_handlers(app):
 # RUN
 # ============================================================
 
-app = create_app()
-
 if __name__ == '__main__':
+    app = create_app()
+
+    # --- Aktifkan Google Find Hub Integration ---
+    try:
+        from findmy_service import FindMyLocationService, register_findmy_routes
+
+        findmy = FindMyLocationService()
+        findmy.init_app(app)
+        register_findmy_routes(app, findmy)
+
+        # Auto-update lokasi setiap 5 menit
+        findmy.start_worker(interval=app.config.get('FINDMY_UPDATE_INTERVAL', 300))
+
+        print("[FindMy] Google Find Hub integration aktif!")
+        print(f"[FindMy] Tracker mapping: {len(app.config.get('FINDMY_TRACKER_MAP', {}))} device(s)")
+        print("[FindMy] Auto-update lokasi setiap 5 menit.")
+    except Exception as e:
+        print(f"[FindMy] Integration tidak aktif: {e}")
+
     app.run(debug=True, host='0.0.0.0', port=5000)
