@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Kategori Produk{% endblock %}
+{% block page_title %}Kategori Produk{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Kelola kategori untuk produk kantin</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Add Category Form -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-plus-circle-fill" style="color: var(--gold-400);"></i> Tambah Kategori</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('kategori_tambah') }}">
+                <div class="form-group">
+                    <label class="form-label">Nama Kategori *</label>
+                    <input type="text" name="nama" class="form-input" placeholder="Contoh: Minuman" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Icon (Bootstrap Icons)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" name="icon" class="form-input" placeholder="bi-box" value="bi-box" id="iconInput">
+                        <div id="iconPreview" style="width: 44px; height: 44px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-box" style="font-size: 20px; color: var(--gold-400);"></i>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+                        {% for icon in ['bi-egg-fried', 'bi-cup-straw', 'bi-cookie', 'bi-basket', 'bi-pencil', 'bi-box', 'bi-bag', 'bi-cart'] %}
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="setIcon('{{ icon }}')" style="padding: 6px 10px;">
+                            <i class="{{ icon }}"></i>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Urutan</label>
+                    <input type="number" name="urutan" class="form-input" placeholder="0" value="0" min="0">
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100" style="justify-content: center;">
+                    <i class="bi bi-plus-lg"></i> Tambah Kategori
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Category List -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="bi bi-tags-fill" style="color: var(--gold-400);"></i> Daftar Kategori</h2>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            {% for k in kategori_data %}
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
+                <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--olive-600); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="{{ k.icon }}" style="font-size: 18px; color: var(--gold-400);"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; color: var(--text-primary);">{{ k.nama }}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">
+                        {{ k.produk_count }} produk · Urutan: {{ k.urutan }}
+                        {% if not k.is_active %}<span style="color: var(--red-300);"> · Nonaktif</span>{% endif %}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="showEditModal({{ k.id }}, '{{ k.nama }}', '{{ k.icon }}', {{ k.urutan }}, {{ 'true' if k.is_active else 'false' }})" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    {% if k.produk_count == 0 %}
+                    <form method="POST" action="{{ url_for('kategori_delete', kategori_id=k.id) }}" style="display: inline;" onsubmit="return confirm('Hapus kategori {{ k.nama }}?')">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--red-300);" title="Hapus">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if not kategori_data %}
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                Belum ada kategori
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; border: 1px solid var(--border-color);">
+        <h3 style="color: var(--text-primary); margin-bottom: 16px;">
+            <i class="bi bi-pencil-square" style="color: var(--gold-400);"></i> Edit Kategori
+        </h3>
+        
+        <form id="editForm" method="POST">
+            <div class="form-group">
+                <label class="form-label">Nama Kategori *</label>
+                <input type="text" name="nama" id="editNama" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Icon</label>
+                <input type="text" name="icon" id="editIcon" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Urutan</label>
+                <input type="number" name="urutan" id="editUrutan" class="form-input" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-primary);">
+                    <input type="checkbox" name="is_active" id="editActive" style="width: 18px; height: 18px; accent-color: var(--gold-400);">
+                    Kategori Aktif
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()" style="flex: 1;">Batal</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="bi bi-check-lg"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setIcon(icon) {
+    document.getElementById('iconInput').value = icon;
+    document.getElementById('iconPreview').innerHTML = '<i class="' + icon + '" style="font-size: 20px; color: var(--gold-400);"></i>';
+}
+
+document.getElementById('iconInput').addEventListener('input', function() {
+    document.getElementById('iconPreview').innerHTML = '<i class="' + this.value + '" style="font-size: 20px; color: var(--gold-400);"></i>';
+});
+
+function showEditModal(id, nama, icon, urutan, isActive) {
+    document.getElementById('editModal').style.display = 'flex';
+    document.getElementById('editForm').action = '/kategori/edit/' + id;
+    document.getElementById('editNama').value = nama;
+    document.getElementById('editIcon').value = icon;
+    document.getElementById('editUrutan').value = urutan;
+    document.getElementById('editActive').checked = isActive;
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+</script>
+{% endblock %}

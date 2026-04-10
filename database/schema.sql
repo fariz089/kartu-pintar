@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS lokasi_history (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- TABLE: menu_kantin (canteen menu items)
+-- TABLE: menu_kantin (canteen menu items) - LEGACY
 -- ============================================================
 CREATE TABLE IF NOT EXISTS menu_kantin (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -145,3 +145,77 @@ CREATE TABLE IF NOT EXISTS menu_kantin (
     INDEX idx_kategori (kategori),
     INDEX idx_available (is_available)
 ) ENGINE=InnoDB;
+
+-- ============================================================
+-- TABLE: kategori_produk (product categories)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS kategori_produk (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nama VARCHAR(50) NOT NULL UNIQUE,
+    icon VARCHAR(50) DEFAULT 'bi-box',
+    urutan INT DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_urutan (urutan),
+    INDEX idx_active (is_active)
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- TABLE: produk (products for supermarket-style canteen)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS produk (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kode VARCHAR(20) NOT NULL UNIQUE,
+    nama VARCHAR(100) NOT NULL,
+    kategori_id INT NOT NULL,
+    harga BIGINT NOT NULL,
+    stok INT NOT NULL DEFAULT 0,
+    stok_minimum INT DEFAULT 5,
+    satuan VARCHAR(20) DEFAULT 'pcs',
+    gambar VARCHAR(255) DEFAULT '/static/img/product-default.svg',
+    deskripsi TEXT,
+    is_available BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_kode (kode),
+    INDEX idx_kategori (kategori_id),
+    INDEX idx_available (is_available),
+    INDEX idx_stok (stok),
+
+    CONSTRAINT fk_produk_kategori FOREIGN KEY (kategori_id)
+        REFERENCES kategori_produk(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- TABLE: transaksi_item (cart items in a transaction)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS transaksi_item (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    transaksi_id INT NOT NULL,
+    produk_id INT NOT NULL,
+    nama_produk VARCHAR(100) NOT NULL,
+    harga_satuan BIGINT NOT NULL,
+    jumlah INT NOT NULL DEFAULT 1,
+    subtotal BIGINT NOT NULL,
+
+    INDEX idx_transaksi (transaksi_id),
+    INDEX idx_produk (produk_id),
+
+    CONSTRAINT fk_item_transaksi FOREIGN KEY (transaksi_id)
+        REFERENCES transaksi(id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_produk FOREIGN KEY (produk_id)
+        REFERENCES produk(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- INSERT DEFAULT CATEGORIES
+-- ============================================================
+INSERT IGNORE INTO kategori_produk (nama, icon, urutan) VALUES
+    ('Makanan', 'bi-egg-fried', 1),
+    ('Minuman', 'bi-cup-straw', 2),
+    ('Snack', 'bi-cookie', 3),
+    ('Sembako', 'bi-basket', 4),
+    ('Alat Tulis', 'bi-pencil', 5),
+    ('Lainnya', 'bi-box', 99);

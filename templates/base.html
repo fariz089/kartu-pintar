@@ -55,11 +55,22 @@
                 </a>
             </div>
             <div class="nav-section">
-                <span class="nav-section-title">KEUANGAN</span>
+                <span class="nav-section-title">TOKO / KANTIN</span>
+                <a href="{{ url_for('produk_list') }}" class="nav-link {% if 'produk' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box-seam-fill"></i>
+                    <span>Manajemen Produk</span>
+                </a>
+                <a href="{{ url_for('kategori_list') }}" class="nav-link {% if 'kategori' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-tags-fill"></i>
+                    <span>Kategori Produk</span>
+                </a>
                 <a href="{{ url_for('pembayaran') }}" class="nav-link {% if request.endpoint == 'pembayaran' %}active{% endif %}">
                     <i class="bi bi-credit-card-2-front-fill"></i>
-                    <span>Pembayaran Kantin</span>
+                    <span>Kasir / Pembayaran</span>
                 </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-title">KEUANGAN</span>
                 <a href="{{ url_for('topup') }}" class="nav-link {% if request.endpoint == 'topup' %}active{% endif %}">
                     <i class="bi bi-wallet-fill"></i>
                     <span>Top Up Saldo</span>

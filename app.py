@@ -12,7 +12,7 @@ import uuid
 import jwt as pyjwt
 
 from config import config_map
-from models import db, User, Anggota, Transaksi, LokasiHistory, MenuKantin
+from models import db, User, Anggota, Transaksi, TransaksiItem, LokasiHistory, MenuKantin, KategoriProduk, Produk
 
 
 def create_app(config_name=None):
@@ -474,17 +474,30 @@ def register_routes(app):
     @app.route('/pembayaran')
     @kantin_or_admin_required
     def pembayaran():
-        anggota_raw = Anggota.query.filter_by(status_kartu='Aktif').all()
+        anggota_raw = Anggota.query.filter_by(status_kartu='Aktif').order_by(Anggota.nama).all()
         anggota_data = [{
-            'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
+            'id': a.kartu_id, 'kartu_id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
             'pangkat': a.pangkat, 'saldo': a.saldo,
             'nfc_uid': a.nfc_uid, 'qr_data': a.qr_data, 'foto': a.foto,
             'status_kartu': a.status_kartu,
         } for a in anggota_raw]
+        
+        # Get products and categories for POS
+        produk_raw = Produk.query.filter_by(is_available=True).filter(Produk.stok > 0).order_by(Produk.kategori_id, Produk.nama).all()
+        produk_data = [p.to_dict() for p in produk_raw]
+        
+        kategori_raw = KategoriProduk.query.filter_by(is_active=True).order_by(KategoriProduk.urutan).all()
+        kategori_data = [k.to_dict() for k in kategori_raw]
+        
         # Recent payment transactions for sidebar
         trx_raw = Transaksi.query.filter_by(jenis='Pembelian').order_by(Transaksi.created_at.desc()).limit(5).all()
         transaksi_terbaru = [trx_to_dict(t) for t in trx_raw]
-        return render_template('pembayaran.html', anggota_data=anggota_data, transaksi_terbaru=transaksi_terbaru)
+        
+        return render_template('pembayaran.html', 
+            anggota_data=anggota_data, 
+            produk_data=produk_data,
+            kategori_data=kategori_data,
+            transaksi_terbaru=transaksi_terbaru)
 
     @app.route('/pembayaran/proses', methods=['POST'])
     @kantin_or_admin_required
@@ -666,6 +679,180 @@ def register_routes(app):
             if anggota_obj:
                 anggota = anggota_to_dict(anggota_obj)
         return render_template('profile.html', user=user, anggota=anggota)
+
+    # --- PRODUK MANAGEMENT (Admin only) ---
+
+    @app.route('/produk')
+    @admin_required
+    def produk_list():
+        kategori_id = request.args.get('kategori', type=int)
+        search = request.args.get('search', '').strip()
+        
+        query = Produk.query
+        if kategori_id:
+            query = query.filter_by(kategori_id=kategori_id)
+        if search:
+            query = query.filter(db.or_(
+                Produk.nama.ilike(f'%{search}%'),
+                Produk.kode.ilike(f'%{search}%'),
+            ))
+        
+        produk_data = query.order_by(Produk.kategori_id, Produk.nama).all()
+        kategori_data = KategoriProduk.query.filter_by(is_active=True).order_by(KategoriProduk.urutan).all()
+        
+        # Stats
+        stok_rendah = Produk.query.filter(Produk.stok <= Produk.stok_minimum, Produk.is_available == True).count()
+        
+        return render_template('admin/produk_list.html',
+            produk_data=[p.to_dict() for p in produk_data],
+            kategori_data=[k.to_dict() for k in kategori_data],
+            selected_kategori=kategori_id,
+            stok_rendah=stok_rendah)
+
+    @app.route('/produk/tambah', methods=['GET', 'POST'])
+    @admin_required
+    def produk_tambah():
+        kategori_data = KategoriProduk.query.filter_by(is_active=True).order_by(KategoriProduk.urutan).all()
+        
+        if request.method == 'POST':
+            try:
+                kode = request.form.get('kode', '').strip().upper()
+                if Produk.query.filter_by(kode=kode).first():
+                    flash('Kode produk sudah digunakan!', 'danger')
+                    return render_template('admin/produk_form.html', mode='tambah', kategori_data=kategori_data)
+                
+                produk = Produk(
+                    kode=kode,
+                    nama=request.form.get('nama', '').strip(),
+                    kategori_id=int(request.form.get('kategori_id')),
+                    harga=int(request.form.get('harga', 0)),
+                    stok=int(request.form.get('stok', 0)),
+                    stok_minimum=int(request.form.get('stok_minimum', 5)),
+                    satuan=request.form.get('satuan', 'pcs'),
+                    deskripsi=request.form.get('deskripsi', ''),
+                )
+                db.session.add(produk)
+                db.session.commit()
+                flash(f'Produk {produk.nama} berhasil ditambahkan!', 'success')
+                return redirect(url_for('produk_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+        
+        return render_template('admin/produk_form.html', mode='tambah', kategori_data=kategori_data)
+
+    @app.route('/produk/edit/<int:produk_id>', methods=['GET', 'POST'])
+    @admin_required
+    def produk_edit(produk_id):
+        produk = Produk.query.get_or_404(produk_id)
+        kategori_data = KategoriProduk.query.filter_by(is_active=True).order_by(KategoriProduk.urutan).all()
+        
+        if request.method == 'POST':
+            try:
+                produk.nama = request.form.get('nama', produk.nama).strip()
+                produk.kategori_id = int(request.form.get('kategori_id', produk.kategori_id))
+                produk.harga = int(request.form.get('harga', produk.harga))
+                produk.stok = int(request.form.get('stok', produk.stok))
+                produk.stok_minimum = int(request.form.get('stok_minimum', produk.stok_minimum))
+                produk.satuan = request.form.get('satuan', produk.satuan)
+                produk.deskripsi = request.form.get('deskripsi', '')
+                produk.is_available = request.form.get('is_available') == 'on'
+                db.session.commit()
+                flash('Produk berhasil diperbarui!', 'success')
+                return redirect(url_for('produk_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+        
+        return render_template('admin/produk_form.html', mode='edit', produk=produk.to_dict(), kategori_data=kategori_data)
+
+    @app.route('/produk/delete/<int:produk_id>', methods=['POST'])
+    @admin_required
+    def produk_delete(produk_id):
+        produk = Produk.query.get_or_404(produk_id)
+        try:
+            nama = produk.nama
+            db.session.delete(produk)
+            db.session.commit()
+            flash(f'Produk {nama} berhasil dihapus.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('produk_list'))
+
+    @app.route('/produk/stok/<int:produk_id>', methods=['POST'])
+    @admin_required
+    def produk_update_stok(produk_id):
+        produk = Produk.query.get_or_404(produk_id)
+        try:
+            mode = request.form.get('mode', 'set')
+            if mode == 'add':
+                produk.stok += int(request.form.get('jumlah', 0))
+            else:
+                produk.stok = int(request.form.get('stok', produk.stok))
+            db.session.commit()
+            flash(f'Stok {produk.nama} diperbarui: {produk.stok} {produk.satuan}', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('produk_list'))
+
+    # --- KATEGORI MANAGEMENT ---
+
+    @app.route('/kategori')
+    @admin_required
+    def kategori_list():
+        kategori_data = KategoriProduk.query.order_by(KategoriProduk.urutan).all()
+        return render_template('admin/kategori_list.html', kategori_data=[k.to_dict() for k in kategori_data])
+
+    @app.route('/kategori/tambah', methods=['POST'])
+    @admin_required
+    def kategori_tambah():
+        try:
+            kategori = KategoriProduk(
+                nama=request.form.get('nama', '').strip(),
+                icon=request.form.get('icon', 'bi-box'),
+                urutan=int(request.form.get('urutan', 0)),
+            )
+            db.session.add(kategori)
+            db.session.commit()
+            flash(f'Kategori {kategori.nama} berhasil ditambahkan!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('kategori_list'))
+
+    @app.route('/kategori/edit/<int:kategori_id>', methods=['POST'])
+    @admin_required
+    def kategori_edit(kategori_id):
+        kategori = KategoriProduk.query.get_or_404(kategori_id)
+        try:
+            kategori.nama = request.form.get('nama', kategori.nama).strip()
+            kategori.icon = request.form.get('icon', kategori.icon)
+            kategori.urutan = int(request.form.get('urutan', kategori.urutan))
+            kategori.is_active = request.form.get('is_active') == 'on'
+            db.session.commit()
+            flash('Kategori berhasil diperbarui!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('kategori_list'))
+
+    @app.route('/kategori/delete/<int:kategori_id>', methods=['POST'])
+    @admin_required
+    def kategori_delete(kategori_id):
+        kategori = KategoriProduk.query.get_or_404(kategori_id)
+        if kategori.produk.count() > 0:
+            flash('Kategori masih memiliki produk!', 'danger')
+            return redirect(url_for('kategori_list'))
+        try:
+            db.session.delete(kategori)
+            db.session.commit()
+            flash('Kategori berhasil dihapus.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal: {str(e)}', 'danger')
+        return redirect(url_for('kategori_list'))
 
 
 # ============================================================
@@ -1039,6 +1226,482 @@ def register_api_routes(app):
         except Exception as e:
             db.session.rollback()
             return jsonify({'success': False, 'message': str(e)}), 500
+
+    # ============================================================
+    # PRODUK & KATEGORI APIs
+    # ============================================================
+
+    @app.route('/api/kategori', methods=['GET'])
+    @jwt_required
+    def api_kategori_list():
+        kategori = KategoriProduk.query.filter_by(is_active=True).order_by(KategoriProduk.urutan).all()
+        return jsonify({'success': True, 'data': [k.to_dict() for k in kategori]})
+
+    @app.route('/api/kategori', methods=['POST'])
+    @jwt_admin_required
+    def api_kategori_create():
+        data = request.get_json()
+        if not data or not data.get('nama'):
+            return jsonify({'success': False, 'message': 'Nama kategori required'}), 400
+        try:
+            kategori = KategoriProduk(
+                nama=data['nama'].strip(),
+                icon=data.get('icon', 'bi-box'),
+                urutan=data.get('urutan', 0),
+            )
+            db.session.add(kategori)
+            db.session.commit()
+            return jsonify({'success': True, 'data': kategori.to_dict()})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/kategori/<int:kategori_id>', methods=['PUT'])
+    @jwt_admin_required
+    def api_kategori_update(kategori_id):
+        data = request.get_json()
+        kategori = KategoriProduk.query.get(kategori_id)
+        if not kategori:
+            return jsonify({'success': False, 'message': 'Kategori tidak ditemukan'}), 404
+        try:
+            if data.get('nama'):
+                kategori.nama = data['nama'].strip()
+            if data.get('icon'):
+                kategori.icon = data['icon']
+            if 'urutan' in data:
+                kategori.urutan = data['urutan']
+            if 'is_active' in data:
+                kategori.is_active = data['is_active']
+            db.session.commit()
+            return jsonify({'success': True, 'data': kategori.to_dict()})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/kategori/<int:kategori_id>', methods=['DELETE'])
+    @jwt_admin_required
+    def api_kategori_delete(kategori_id):
+        kategori = KategoriProduk.query.get(kategori_id)
+        if not kategori:
+            return jsonify({'success': False, 'message': 'Kategori tidak ditemukan'}), 404
+        if kategori.produk.count() > 0:
+            return jsonify({'success': False, 'message': 'Kategori masih memiliki produk'}), 400
+        try:
+            db.session.delete(kategori)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Kategori berhasil dihapus'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/produk', methods=['GET'])
+    @jwt_required
+    def api_produk_list():
+        kategori_id = request.args.get('kategori_id', type=int)
+        search = request.args.get('search', '').strip()
+        available_only = request.args.get('available', 'true').lower() == 'true'
+        
+        query = Produk.query
+        if kategori_id:
+            query = query.filter_by(kategori_id=kategori_id)
+        if search:
+            query = query.filter(db.or_(
+                Produk.nama.ilike(f'%{search}%'),
+                Produk.kode.ilike(f'%{search}%'),
+            ))
+        if available_only:
+            query = query.filter_by(is_available=True).filter(Produk.stok > 0)
+        
+        produk = query.order_by(Produk.kategori_id, Produk.nama).all()
+        return jsonify({'success': True, 'data': [p.to_dict() for p in produk]})
+
+    @app.route('/api/produk/<int:produk_id>', methods=['GET'])
+    @jwt_required
+    def api_produk_detail(produk_id):
+        produk = Produk.query.get(produk_id)
+        if produk:
+            return jsonify({'success': True, 'data': produk.to_dict()})
+        return jsonify({'success': False, 'message': 'Produk tidak ditemukan'}), 404
+
+    @app.route('/api/produk/kode/<kode>', methods=['GET'])
+    @jwt_required
+    def api_produk_by_kode(kode):
+        produk = Produk.query.filter_by(kode=kode).first()
+        if produk:
+            return jsonify({'success': True, 'data': produk.to_dict()})
+        return jsonify({'success': False, 'message': 'Produk tidak ditemukan'}), 404
+
+    @app.route('/api/produk', methods=['POST'])
+    @jwt_admin_required
+    def api_produk_create():
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        required = ['kode', 'nama', 'kategori_id', 'harga']
+        for field in required:
+            if not data.get(field):
+                return jsonify({'success': False, 'message': f'{field} required'}), 400
+        
+        if Produk.query.filter_by(kode=data['kode']).first():
+            return jsonify({'success': False, 'message': 'Kode produk sudah digunakan'}), 400
+        
+        try:
+            produk = Produk(
+                kode=data['kode'].strip().upper(),
+                nama=data['nama'].strip(),
+                kategori_id=int(data['kategori_id']),
+                harga=int(data['harga']),
+                stok=int(data.get('stok', 0)),
+                stok_minimum=int(data.get('stok_minimum', 5)),
+                satuan=data.get('satuan', 'pcs'),
+                deskripsi=data.get('deskripsi', ''),
+            )
+            db.session.add(produk)
+            db.session.commit()
+            return jsonify({'success': True, 'data': produk.to_dict()})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/produk/<int:produk_id>', methods=['PUT'])
+    @jwt_admin_required
+    def api_produk_update(produk_id):
+        data = request.get_json()
+        produk = Produk.query.get(produk_id)
+        if not produk:
+            return jsonify({'success': False, 'message': 'Produk tidak ditemukan'}), 404
+        try:
+            if data.get('nama'):
+                produk.nama = data['nama'].strip()
+            if data.get('kategori_id'):
+                produk.kategori_id = int(data['kategori_id'])
+            if 'harga' in data:
+                produk.harga = int(data['harga'])
+            if 'stok' in data:
+                produk.stok = int(data['stok'])
+            if 'stok_minimum' in data:
+                produk.stok_minimum = int(data['stok_minimum'])
+            if data.get('satuan'):
+                produk.satuan = data['satuan']
+            if 'deskripsi' in data:
+                produk.deskripsi = data['deskripsi']
+            if 'is_available' in data:
+                produk.is_available = data['is_available']
+            db.session.commit()
+            return jsonify({'success': True, 'data': produk.to_dict()})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/produk/<int:produk_id>/stok', methods=['PUT'])
+    @jwt_admin_required
+    def api_produk_update_stok(produk_id):
+        """Quick stock update (add or set)"""
+        data = request.get_json()
+        produk = Produk.query.get(produk_id)
+        if not produk:
+            return jsonify({'success': False, 'message': 'Produk tidak ditemukan'}), 404
+        try:
+            if data.get('mode') == 'add':
+                produk.stok += int(data.get('jumlah', 0))
+            else:
+                produk.stok = int(data.get('stok', produk.stok))
+            db.session.commit()
+            return jsonify({'success': True, 'data': produk.to_dict()})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/produk/<int:produk_id>', methods=['DELETE'])
+    @jwt_admin_required
+    def api_produk_delete(produk_id):
+        produk = Produk.query.get(produk_id)
+        if not produk:
+            return jsonify({'success': False, 'message': 'Produk tidak ditemukan'}), 404
+        try:
+            db.session.delete(produk)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Produk berhasil dihapus'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # ============================================================
+    # PEMBAYARAN DENGAN CART (Supermarket Style)
+    # ============================================================
+
+    @app.route('/api/pembayaran/cart', methods=['POST'])
+    @jwt_required
+    def api_pembayaran_cart():
+        """
+        Pembayaran dengan cart items (produk)
+        Body: { kartu_id, items: [{produk_id, jumlah}], metode }
+        """
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        
+        kartu_id = data.get('kartu_id', '').strip()
+        items = data.get('items', [])
+        metode = data.get('metode', 'Manual')
+        
+        if not kartu_id or not items:
+            return jsonify({'success': False, 'message': 'kartu_id dan items required'}), 400
+        
+        anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+        if not anggota:
+            return jsonify({'success': False, 'message': 'Anggota tidak ditemukan'}), 404
+        if anggota.status_kartu != 'Aktif':
+            return jsonify({'success': False, 'message': 'Kartu tidak aktif'}), 400
+        
+        # Calculate total and validate stock
+        total = 0
+        cart_items = []
+        for item in items:
+            produk = Produk.query.get(item.get('produk_id'))
+            if not produk:
+                return jsonify({'success': False, 'message': f'Produk ID {item.get("produk_id")} tidak ditemukan'}), 400
+            jumlah = int(item.get('jumlah', 1))
+            if produk.stok < jumlah:
+                return jsonify({'success': False, 'message': f'Stok {produk.nama} tidak cukup (tersedia: {produk.stok})'}), 400
+            subtotal = produk.harga * jumlah
+            total += subtotal
+            cart_items.append({
+                'produk': produk,
+                'jumlah': jumlah,
+                'subtotal': subtotal,
+            })
+        
+        if anggota.saldo < total:
+            return jsonify({'success': False, 'message': f'Saldo tidak cukup. Total: Rp {total:,}, Saldo: Rp {anggota.saldo:,}'.replace(',', '.')}), 400
+        
+        try:
+            saldo_sebelum = anggota.saldo
+            anggota.saldo -= total
+            
+            # Create transaction
+            keterangan = ', '.join([f"{c['produk'].nama} x{c['jumlah']}" for c in cart_items[:3]])
+            if len(cart_items) > 3:
+                keterangan += f' (+{len(cart_items) - 3} lainnya)'
+            
+            trx = Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Pembelian', keterangan=keterangan, nominal=total,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode=metode, operator_id=request.current_user_id,
+            )
+            db.session.add(trx)
+            db.session.flush()  # Get trx.id
+            
+            # Create transaction items & reduce stock
+            for c in cart_items:
+                ti = TransaksiItem(
+                    transaksi_id=trx.id,
+                    produk_id=c['produk'].id,
+                    nama_produk=c['produk'].nama,
+                    harga_satuan=c['produk'].harga,
+                    jumlah=c['jumlah'],
+                    subtotal=c['subtotal'],
+                )
+                db.session.add(ti)
+                c['produk'].stok -= c['jumlah']
+            
+            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_waktu = datetime.now()
+            db.session.commit()
+            
+            return jsonify({'success': True, 'data': {
+                'trx_id': trx.trx_id,
+                'total': total,
+                'item_count': len(cart_items),
+                'saldo_sebelum': saldo_sebelum,
+                'saldo_sesudah': anggota.saldo,
+                'items': [{'nama': c['produk'].nama, 'jumlah': c['jumlah'], 'subtotal': c['subtotal']} for c in cart_items],
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # ============================================================
+    # AUTO PAY VIA NFC/QR TAP (Instant Payment)
+    # ============================================================
+
+    @app.route('/api/pembayaran/tap', methods=['POST'])
+    @jwt_required
+    def api_pembayaran_tap():
+        """
+        Pembayaran instant via NFC/QR tap
+        Body: { scan_data, items: [{produk_id, jumlah}], metode: 'NFC'|'QR' }
+        Langsung proses pembayaran tanpa perlu pilih anggota manual
+        """
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        
+        scan_data = data.get('scan_data', '').strip()
+        items = data.get('items', [])
+        metode = data.get('metode', 'NFC')
+        
+        if not scan_data:
+            return jsonify({'success': False, 'message': 'scan_data required'}), 400
+        
+        # Find anggota by NFC/QR
+        anggota = find_anggota_by_scan(scan_data, metode)
+        if not anggota:
+            return jsonify({'success': False, 'message': 'Kartu tidak terdaftar'}), 404
+        if anggota.status_kartu != 'Aktif':
+            return jsonify({'success': False, 'message': 'Kartu tidak aktif'}), 400
+        
+        # If no items, return anggota info (for pre-check)
+        if not items:
+            return jsonify({'success': True, 'data': {
+                'anggota': {
+                    'kartu_id': anggota.kartu_id,
+                    'nama': anggota.nama,
+                    'pangkat': anggota.pangkat,
+                    'saldo': anggota.saldo,
+                    'foto': anggota.foto,
+                },
+                'ready_to_pay': True,
+            }})
+        
+        # Process payment with items
+        total = 0
+        cart_items = []
+        for item in items:
+            produk = Produk.query.get(item.get('produk_id'))
+            if not produk:
+                return jsonify({'success': False, 'message': f'Produk tidak ditemukan'}), 400
+            jumlah = int(item.get('jumlah', 1))
+            if produk.stok < jumlah:
+                return jsonify({'success': False, 'message': f'Stok {produk.nama} tidak cukup'}), 400
+            subtotal = produk.harga * jumlah
+            total += subtotal
+            cart_items.append({'produk': produk, 'jumlah': jumlah, 'subtotal': subtotal})
+        
+        if anggota.saldo < total:
+            return jsonify({'success': False, 'message': f'Saldo tidak cukup', 'saldo': anggota.saldo, 'total': total}), 400
+        
+        try:
+            saldo_sebelum = anggota.saldo
+            anggota.saldo -= total
+            
+            keterangan = ', '.join([f"{c['produk'].nama} x{c['jumlah']}" for c in cart_items[:3]])
+            if len(cart_items) > 3:
+                keterangan += f' (+{len(cart_items) - 3} lainnya)'
+            
+            trx = Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Pembelian', keterangan=keterangan, nominal=total,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode=metode, operator_id=request.current_user_id,
+            )
+            db.session.add(trx)
+            db.session.flush()
+            
+            for c in cart_items:
+                db.session.add(TransaksiItem(
+                    transaksi_id=trx.id, produk_id=c['produk'].id,
+                    nama_produk=c['produk'].nama, harga_satuan=c['produk'].harga,
+                    jumlah=c['jumlah'], subtotal=c['subtotal'],
+                ))
+                c['produk'].stok -= c['jumlah']
+            
+            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=anggota.id, latitude=-6.8927, longitude=107.6100,
+                lokasi_nama='Kantin Poltekkad', sumber=metode,
+                scanned_by_user_id=request.current_user_id,
+            ))
+            db.session.commit()
+            
+            return jsonify({'success': True, 'data': {
+                'trx_id': trx.trx_id,
+                'anggota': {'kartu_id': anggota.kartu_id, 'nama': anggota.nama},
+                'total': total,
+                'saldo_sebelum': saldo_sebelum,
+                'saldo_sesudah': anggota.saldo,
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    # ============================================================
+    # AUTO TOPUP VIA NFC/QR TAP
+    # ============================================================
+
+    @app.route('/api/topup/tap', methods=['POST'])
+    @jwt_admin_required
+    def api_topup_tap():
+        """
+        Top up instant via NFC/QR tap
+        Body: { scan_data, nominal, metode: 'NFC'|'QR' }
+        """
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        
+        scan_data = data.get('scan_data', '').strip()
+        nominal = int(data.get('nominal', 0))
+        metode = data.get('metode', 'NFC')
+        
+        if not scan_data:
+            return jsonify({'success': False, 'message': 'scan_data required'}), 400
+        
+        # Find anggota by NFC/QR
+        anggota = find_anggota_by_scan(scan_data, metode)
+        if not anggota:
+            return jsonify({'success': False, 'message': 'Kartu tidak terdaftar'}), 404
+        
+        # If no nominal, return anggota info (for pre-check)
+        if nominal <= 0:
+            return jsonify({'success': True, 'data': {
+                'anggota': {
+                    'kartu_id': anggota.kartu_id,
+                    'nama': anggota.nama,
+                    'pangkat': anggota.pangkat,
+                    'saldo': anggota.saldo,
+                    'foto': anggota.foto,
+                },
+                'ready_to_topup': True,
+            }})
+        
+        if nominal > 5000000:
+            return jsonify({'success': False, 'message': 'Maksimal Rp 5.000.000'}), 400
+        
+        try:
+            saldo_sebelum = anggota.saldo
+            anggota.saldo += nominal
+            
+            trx = Transaksi(
+                trx_id=generate_trx_id(), anggota_id=anggota.id,
+                jenis='Top Up', keterangan=f'Pengisian Saldo via {metode}', nominal=nominal,
+                saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
+                status='Berhasil', metode=metode, operator_id=request.current_user_id,
+            )
+            db.session.add(trx)
+            db.session.commit()
+            
+            return jsonify({'success': True, 'data': {
+                'trx_id': trx.trx_id,
+                'anggota': {'kartu_id': anggota.kartu_id, 'nama': anggota.nama},
+                'nominal': nominal,
+                'saldo_sebelum': saldo_sebelum,
+                'saldo_sesudah': anggota.saldo,
+            }})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/transaksi/<trx_id>/detail', methods=['GET'])
+    @jwt_required
+    def api_transaksi_detail(trx_id):
+        """Get transaction with items detail"""
+        trx = Transaksi.query.filter_by(trx_id=trx_id).first()
+        if not trx:
+            return jsonify({'success': False, 'message': 'Transaksi tidak ditemukan'}), 404
+        return jsonify({'success': True, 'data': trx.to_dict(include_items=True)})
 
 
 # ============================================================

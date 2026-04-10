@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Tambah' }} Produk{% endblock %}
+{% block page_title %}{{ 'Edit' if mode == 'edit' else 'Tambah' }} Produk{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">
+        {{ 'Perbarui informasi produk' if mode == 'edit' else 'Tambahkan produk baru ke kantin' }}
+    </p>
+</div>
+
+<div style="max-width: 600px;">
+    <div class="card">
+        <div class="card-header">
+            <h2>
+                <i class="bi bi-{{ 'pencil-square' if mode == 'edit' else 'plus-circle-fill' }}" style="color: var(--gold-400);"></i>
+                Form Produk
+            </h2>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Kode Produk *</label>
+                    <input type="text" name="kode" class="form-input" placeholder="Contoh: MKN001" 
+                        value="{{ produk.kode if produk else '' }}" 
+                        {% if mode == 'edit' %}readonly{% endif %} required>
+                    {% if mode == 'edit' %}
+                    <small style="color: var(--text-muted);">Kode tidak dapat diubah</small>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Nama Produk *</label>
+                    <input type="text" name="nama" class="form-input" placeholder="Nama produk" 
+                        value="{{ produk.nama if produk else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Kategori *</label>
+                    <select name="kategori_id" class="form-select" required>
+                        <option value="">— Pilih Kategori —</option>
+                        {% for k in kategori_data %}
+                        <option value="{{ k.id }}" {% if produk and produk.kategori_id == k.id %}selected{% endif %}>
+                            {{ k.nama }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Harga (Rp) *</label>
+                        <input type="number" name="harga" class="form-input" placeholder="0" min="0"
+                            value="{{ produk.harga if produk else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Satuan</label>
+                        <select name="satuan" class="form-select">
+                            {% set satuans = ['pcs', 'porsi', 'mangkok', 'gelas', 'botol', 'bungkus', 'kotak', 'lembar'] %}
+                            {% for s in satuans %}
+                            <option value="{{ s }}" {% if produk and produk.satuan == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Stok</label>
+                        <input type="number" name="stok" class="form-input" placeholder="0" min="0"
+                            value="{{ produk.stok if produk else 0 }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Stok Minimum (Alert)</label>
+                        <input type="number" name="stok_minimum" class="form-input" placeholder="5" min="0"
+                            value="{{ produk.stok_minimum if produk else 5 }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea name="deskripsi" class="form-input" rows="3" placeholder="Deskripsi produk (opsional)">{{ produk.deskripsi if produk else '' }}</textarea>
+                </div>
+
+                {% if mode == 'edit' %}
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-primary);">
+                        <input type="checkbox" name="is_available" {% if produk.is_available %}checked{% endif %}
+                            style="width: 18px; height: 18px; accent-color: var(--gold-400);">
+                        Produk Aktif (tersedia untuk dijual)
+                    </label>
+                </div>
+                {% endif %}
+
+                <div style="display: flex; gap: 12px; margin-top: 20px;">
+                    <a href="{{ url_for('produk_list') }}" class="btn btn-secondary" style="flex: 1; justify-content: center;">
+                        <i class="bi bi-arrow-left"></i> Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">
+                        <i class="bi bi-check-lg"></i> {{ 'Simpan' if mode == 'edit' else 'Tambah Produk' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

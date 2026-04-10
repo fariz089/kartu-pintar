@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen Produk{% endblock %}
+{% block page_title %}Manajemen Produk{% endblock %}
+
+{% block content %}
+<div class="section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <p class="text-muted" style="font-size: 14px;">Kelola produk kantin seperti supermarket</p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        {% if stok_rendah > 0 %}
+        <span class="badge" style="background: var(--red-300); color: var(--bg-dark); padding: 8px 12px;">
+            <i class="bi bi-exclamation-triangle-fill"></i> {{ stok_rendah }} produk stok rendah
+        </span>
+        {% endif %}
+        <a href="{{ url_for('produk_tambah') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Tambah Produk
+        </a>
+    </div>
+</div>
+
+<!-- Filter & Search -->
+<div class="card mb-2">
+    <div class="card-body" style="padding: 16px;">
+        <form method="GET" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1; min-width: 200px;">
+                <input type="text" name="search" class="form-input" placeholder="Cari produk..." 
+                    value="{{ request.args.get('search', '') }}" style="margin: 0;">
+            </div>
+            <div style="min-width: 180px;">
+                <select name="kategori" class="form-select" style="margin: 0;" onchange="this.form.submit()">
+                    <option value="">Semua Kategori</option>
+                    {% for k in kategori_data %}
+                    <option value="{{ k.id }}" {% if selected_kategori == k.id %}selected{% endif %}>
+                        {{ k.nama }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary">
+                <i class="bi bi-search"></i> Cari
+            </button>
+            {% if request.args.get('search') or request.args.get('kategori') %}
+            <a href="{{ url_for('produk_list') }}" class="btn btn-secondary">
+                <i class="bi bi-x-lg"></i> Reset
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Products Grid -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-box-seam-fill" style="color: var(--gold-400);"></i> Daftar Produk ({{ produk_data|length }})</h2>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if produk_data %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; padding: 16px;">
+            {% for p in produk_data %}
+            <div class="product-card" style="background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden;">
+                <div style="padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div>
+                            <span style="font-size: 10px; background: var(--olive-600); color: var(--gold-400); padding: 2px 8px; border-radius: 4px;">
+                                {{ p.kode }}
+                            </span>
+                            <span style="font-size: 10px; color: var(--text-muted); margin-left: 6px;">
+                                {{ p.kategori }}
+                            </span>
+                        </div>
+                        {% if not p.is_available %}
+                        <span class="badge" style="background: var(--red-300); font-size: 9px;">Nonaktif</span>
+                        {% elif p.stok_rendah %}
+                        <span class="badge" style="background: var(--warning); color: var(--bg-dark); font-size: 9px;">Stok Rendah</span>
+                        {% endif %}
+                    </div>
+                    
+                    <h3 style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                        {{ p.nama }}
+                    </h3>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                        <div>
+                            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold-400);">
+                                {{ p.harga|rupiah }}
+                            </div>
+                            <div style="font-size: 12px; color: {% if p.stok_rendah %}var(--red-300){% else %}var(--text-muted){% endif %};">
+                                Stok: {{ p.stok }} {{ p.satuan }}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showStokModal({{ p.id }}, '{{ p.nama }}', {{ p.stok }})" title="Update Stok">
+                                <i class="bi bi-plus-slash-minus"></i>
+                            </button>
+                            <a href="{{ url_for('produk_edit', produk_id=p.id) }}" class="btn btn-secondary btn-sm" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('produk_delete', produk_id=p.id) }}" style="display: inline;" 
+                                onsubmit="return confirm('Hapus produk {{ p.nama }}?')">
+                                <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--red-300);" title="Hapus">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+            <i class="bi bi-box" style="font-size: 48px; opacity: 0.5;"></i>
+            <p style="margin-top: 12px;">Belum ada produk</p>
+            <a href="{{ url_for('produk_tambah') }}" class="btn btn-primary mt-1">
+                <i class="bi bi-plus-lg"></i> Tambah Produk Pertama
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Update Stok -->
+<div id="stokModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; border: 1px solid var(--border-color);">
+        <h3 style="color: var(--text-primary); margin-bottom: 16px;">
+            <i class="bi bi-box-seam" style="color: var(--gold-400);"></i> Update Stok
+        </h3>
+        <p id="stokModalName" style="color: var(--text-muted); margin-bottom: 16px;"></p>
+        
+        <form id="stokForm" method="POST">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn btn-secondary" onclick="setStokMode('add')" id="btnAdd" style="flex: 1;">
+                    <i class="bi bi-plus-lg"></i> Tambah
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="setStokMode('set')" id="btnSet" style="flex: 1;">
+                    <i class="bi bi-pencil"></i> Set
+                </button>
+            </div>
+            
+            <input type="hidden" name="mode" id="stokMode" value="add">
+            
+            <div id="addStokDiv">
+                <label class="form-label">Tambah Jumlah:</label>
+                <input type="number" name="jumlah" class="form-input" placeholder="Jumlah yang ditambah" min="1">
+            </div>
+            
+            <div id="setStokDiv" style="display: none;">
+                <label class="form-label">Set Stok Baru:</label>
+                <input type="number" name="stok" id="stokInput" class="form-input" placeholder="Stok baru" min="0">
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeStokModal()" style="flex: 1;">Batal</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    <i class="bi bi-check-lg"></i> Simpan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showStokModal(id, nama, stok) {
+    document.getElementById('stokModal').style.display = 'flex';
+    document.getElementById('stokModalName').textContent = nama + ' (Stok saat ini: ' + stok + ')';
+    document.getElementById('stokForm').action = '/produk/stok/' + id;
+    document.getElementById('stokInput').value = stok;
+    setStokMode('add');
+}
+
+function closeStokModal() {
+    document.getElementById('stokModal').style.display = 'none';
+}
+
+function setStokMode(mode) {
+    document.getElementById('stokMode').value = mode;
+    if (mode === 'add') {
+        document.getElementById('addStokDiv').style.display = 'block';
+        document.getElementById('setStokDiv').style.display = 'none';
+        document.getElementById('btnAdd').classList.add('btn-primary');
+        document.getElementById('btnAdd').classList.remove('btn-secondary');
+        document.getElementById('btnSet').classList.add('btn-secondary');
+        document.getElementById('btnSet').classList.remove('btn-primary');
+    } else {
+        document.getElementById('addStokDiv').style.display = 'none';
+        document.getElementById('setStokDiv').style.display = 'block';
+        document.getElementById('btnSet').classList.add('btn-primary');
+        document.getElementById('btnSet').classList.remove('btn-secondary');
+        document.getElementById('btnAdd').classList.add('btn-secondary');
+        document.getElementById('btnAdd').classList.remove('btn-primary');
+    }
+}
+
+document.getElementById('stokModal').addEventListener('click', function(e) {
+    if (e.target === this) closeStokModal();
+});
+</script>
+{% endblock %}

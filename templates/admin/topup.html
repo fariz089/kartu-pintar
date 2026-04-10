@@ -9,23 +9,37 @@
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="bi bi-wallet-fill" style="color: var(--gold-400);"></i> Form Top Up</h2>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('topup_proses') }}">
-                <div class="form-group">
-                    <label class="form-label">Pilih Anggota</label>
-                    <select name="anggota_id" class="form-select" id="topupAnggota" required>
-                        <option value="">— Pilih Anggota —</option>
-                        {% for a in anggota_data %}
-                        <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}">
-                            {{ a.nama }} — {{ a.pangkat }} (Saldo: {{ a.saldo|rupiah }})
-                        </option>
-                        {% endfor %}
-                    </select>
+    <div>
+        <!-- NFC/QR Tap to TopUp -->
+        <div class="scan-card mb-2" onclick="showTopupTapModal()" style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="scan-card-icon" style="margin: 0; width: 50px; height: 50px;">
+                    <i class="bi bi-nfc" style="font-size: 24px;"></i>
                 </div>
+                <div style="text-align: left;">
+                    <h3 style="margin: 0; font-size: 16px;">TAP UNTUK TOP UP</h3>
+                    <p style="margin: 4px 0 0; font-size: 12px;">NFC atau Scan QR Code untuk isi saldo</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-wallet-fill" style="color: var(--gold-400);"></i> Form Top Up Manual</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('topup_proses') }}">
+                    <div class="form-group">
+                        <label class="form-label">Pilih Anggota</label>
+                        <select name="anggota_id" class="form-select" id="topupAnggota" required>
+                            <option value="">— Pilih Anggota —</option>
+                            {% for a in anggota_data %}
+                            <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}">
+                                {{ a.nama }} — {{ a.pangkat }} (Saldo: {{ a.saldo|rupiah }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
                 <div id="topupMemberInfo" style="display: none;" class="mb-2">
                     <div style="padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color); text-align: center;">
@@ -59,6 +73,7 @@
             </form>
         </div>
     </div>
+    </div>
 
     <!-- Right: Member Saldo Overview -->
     <div>
@@ -66,7 +81,7 @@
             <div class="card-header">
                 <h2><i class="bi bi-people-fill" style="color: var(--gold-400);"></i> Saldo Anggota</h2>
             </div>
-            <div class="card-body" style="padding: 0;">
+            <div class="card-body" style="padding: 0; max-height: 500px; overflow-y: auto;">
                 {% for a in anggota_data %}
                 <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
                     <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold-400); flex-shrink: 0;">
@@ -88,10 +103,100 @@
         </div>
     </div>
 </div>
+
+<!-- TAP TopUp Modal -->
+<div id="topupTapModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 20px; padding: 32px; width: 90%; max-width: 450px; text-align: center; border: 1px solid var(--border-color);">
+        
+        <!-- Step 1: Scan Kartu -->
+        <div id="topupStep1">
+            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-400), var(--gold-500)); display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
+                <i class="bi bi-nfc" style="font-size: 48px; color: var(--bg-dark);"></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 8px;">Tempelkan Kartu untuk Top Up</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Dekatkan Kartu Pintar ke NFC reader atau scan QR Code</p>
+            
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="topupScanInput" class="form-input" placeholder="Scan / Input UID" 
+                    style="flex: 1;" autocomplete="off">
+                <button type="button" class="btn btn-primary" onclick="processTopupScan()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeTopupTapModal()">
+                    <i class="bi bi-x"></i> Batal
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 2: Member Found, Enter Amount -->
+        <div id="topupStep2" style="display: none;">
+            <div style="width: 70px; height: 70px; margin: 0 auto 16px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-person-check-fill" style="font-size: 32px; color: var(--gold-400);"></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 4px;" id="topupMemberNama">-</h3>
+            <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;" id="topupMemberPangkat">-</div>
+            
+            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 16px;">
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo Saat Ini</div>
+                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--gold-400);" id="topupMemberSaldo">-</div>
+            </div>
+            
+            <div class="form-group" style="text-align: left;">
+                <label class="form-label">Nominal Top Up</label>
+                <input type="number" id="topupNominal" class="form-input" placeholder="Masukkan nominal" min="10000" step="1000">
+            </div>
+            
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(50000)">Rp 50.000</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(100000)">Rp 100.000</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(200000)">Rp 200.000</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(500000)">Rp 500.000</button>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-secondary" onclick="backToScan()">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmTopupTap()" style="flex: 1;">
+                    <i class="bi bi-plus-circle-fill"></i> Proses Top Up
+                </button>
+            </div>
+        </div>
+        
+        <!-- Step 3: Success -->
+        <div id="topupStep3" style="display: none;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 16px; border-radius: 50%; background: var(--green-500); display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-check-lg" style="font-size: 40px; color: white;"></i>
+            </div>
+            <h3 style="color: var(--green-400); margin-bottom: 8px;">Top Up Berhasil!</h3>
+            <p style="color: var(--text-muted); margin-bottom: 12px;" id="topupSuccessMsg">-</p>
+            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 20px;">
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo Baru</div>
+                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold-400);" id="topupNewSaldo">-</div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="closeTopupTapModal(); location.reload();">
+                <i class="bi bi-check"></i> Selesai
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(196, 164, 94, 0.4); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 15px rgba(196, 164, 94, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(196, 164, 94, 0); }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+let topupTapAnggota = null;
+
 document.getElementById('topupAnggota').addEventListener('change', function() {
     const info = document.getElementById('topupMemberInfo');
     const opt = this.options[this.selectedIndex];
@@ -101,6 +206,104 @@ document.getElementById('topupAnggota').addEventListener('change', function() {
     } else {
         info.style.display = 'none';
     }
+});
+
+// TAP Modal functions
+function showTopupTapModal() {
+    document.getElementById('topupTapModal').style.display = 'flex';
+    document.getElementById('topupStep1').style.display = 'block';
+    document.getElementById('topupStep2').style.display = 'none';
+    document.getElementById('topupStep3').style.display = 'none';
+    document.getElementById('topupScanInput').value = '';
+    document.getElementById('topupScanInput').focus();
+    topupTapAnggota = null;
+}
+
+function closeTopupTapModal() {
+    document.getElementById('topupTapModal').style.display = 'none';
+    topupTapAnggota = null;
+}
+
+function backToScan() {
+    document.getElementById('topupStep1').style.display = 'block';
+    document.getElementById('topupStep2').style.display = 'none';
+    document.getElementById('topupScanInput').value = '';
+    document.getElementById('topupScanInput').focus();
+    topupTapAnggota = null;
+}
+
+function setTopupNominal(val) {
+    document.getElementById('topupNominal').value = val;
+}
+
+// Process scan to find member
+function processTopupScan() {
+    const scanData = document.getElementById('topupScanInput').value.trim();
+    if (!scanData) return;
+    
+    fetch('/api/topup/tap', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({ scan_data: scanData, metode: 'NFC' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.data.ready_to_topup) {
+            topupTapAnggota = data.data.anggota;
+            document.getElementById('topupStep1').style.display = 'none';
+            document.getElementById('topupStep2').style.display = 'block';
+            document.getElementById('topupMemberNama').textContent = topupTapAnggota.nama;
+            document.getElementById('topupMemberPangkat').textContent = topupTapAnggota.pangkat + ' — ' + (topupTapAnggota.jabatan || '');
+            document.getElementById('topupMemberSaldo').textContent = 'Rp ' + topupTapAnggota.saldo.toLocaleString('id-ID');
+            document.getElementById('topupNominal').value = '';
+            document.getElementById('topupNominal').focus();
+        } else {
+            alert(data.message || 'Kartu tidak ditemukan');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+// Confirm topup
+function confirmTopupTap() {
+    if (!topupTapAnggota) return;
+    const nominal = parseInt(document.getElementById('topupNominal').value) || 0;
+    if (nominal < 10000) {
+        alert('Nominal minimal Rp 10.000');
+        return;
+    }
+    
+    const scanData = document.getElementById('topupScanInput').value.trim();
+    
+    fetch('/api/topup/tap', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({ scan_data: scanData, nominal: nominal, metode: 'NFC' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('topupStep2').style.display = 'none';
+            document.getElementById('topupStep3').style.display = 'block';
+            document.getElementById('topupSuccessMsg').textContent = 
+                'Top Up Rp ' + nominal.toLocaleString('id-ID') + ' untuk ' + topupTapAnggota.nama;
+            document.getElementById('topupNewSaldo').textContent = 'Rp ' + data.data.saldo_sesudah.toLocaleString('id-ID');
+        } else {
+            alert('Gagal: ' + data.message);
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+// Enter key handler
+document.getElementById('topupScanInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') processTopupScan();
 });
 </script>
 {% endblock %}

@@ -1,191 +1,536 @@
 {% extends "base.html" %}
 
-{% block title %}Pembayaran Kantin{% endblock %}
-{% block page_title %}Pembayaran Kantin{% endblock %}
+{% block title %}Kasir / Pembayaran{% endblock %}
+{% block page_title %}Kasir / Pembayaran{% endblock %}
 
 {% block content %}
 <div class="section-header">
-    <p class="text-muted" style="font-size: 14px;">Lakukan pembayaran di kantin Poltekkad menggunakan Kartu Pintar</p>
+    <p class="text-muted" style="font-size: 14px;">Point of Sale - Pilih produk dan bayar dengan Kartu Pintar</p>
 </div>
 
-<div class="payment-section">
-    <!-- Left: Payment Form -->
+<div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px;">
+    <!-- Left: Products & Cart -->
     <div>
-        <div class="card">
-            <div class="card-header">
-                <h2><i class="bi bi-credit-card-2-front-fill" style="color: var(--gold-400);"></i> Form Pembayaran</h2>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('pembayaran_proses') }}">
-                    <!-- Select Member -->
-                    <div class="form-group">
-                        <label class="form-label">Pilih Anggota / Scan Kartu</label>
-                        <select name="anggota_id" class="form-select" id="selectAnggota" required>
-                            <option value="">— Pilih Anggota —</option>
-                            {% for a in anggota_data %}
-                            {% if a.status_kartu == 'Aktif' %}
-                            <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}" data-pangkat="{{ a.pangkat }}">
-                                {{ a.nama }} — {{ a.pangkat }} ({{ a.saldo|rupiah }})
-                            </option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Selected Member Info -->
-                    <div id="memberInfo" style="display: none;" class="mb-2">
-                        <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
-                            <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gold-400); flex-shrink: 0;">
-                                <i class="bi bi-person-fill"></i>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; color: var(--text-primary);" id="infoNama">-</div>
-                                <div style="font-size: 12px; color: var(--text-muted);" id="infoPangkat">-</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo</div>
-                                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gold-400);" id="infoSaldo">-</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Amount -->
-                    <div class="form-group">
-                        <label class="form-label">Nominal Pembayaran</label>
-                        <div class="amount-display">
-                            <span class="currency">Rp</span>
-                            <div class="amount" id="amountValue">0</div>
-                        </div>
-                        <input type="hidden" name="nominal" id="amountInput" value="0">
-                    </div>
-
-                    <!-- Numpad -->
-                    <div class="payment-numpad">
-                        <button type="button" class="numpad-btn" onclick="numpadPress('1')">1</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('2')">2</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('3')">3</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('4')">4</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('5')">5</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('6')">6</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('7')">7</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('8')">8</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('9')">9</button>
-                        <button type="button" class="numpad-btn clear" onclick="numpadPress('C')">C</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('0')">0</button>
-                        <button type="button" class="numpad-btn" onclick="numpadPress('DEL')">
-                            <i class="bi bi-backspace"></i>
-                        </button>
-                    </div>
-
-                    <!-- Quick Amount -->
-                    <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(5000)">Rp 5.000</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(10000)">Rp 10.000</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(15000)">Rp 15.000</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(25000)">Rp 25.000</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickAmount(50000)">Rp 50.000</button>
-                    </div>
-
-                    <!-- Description -->
-                    <div class="form-group mt-2">
-                        <label class="form-label">Keterangan</label>
-                        <input type="text" name="keterangan" class="form-input" placeholder="Contoh: Makan Siang - Kantin">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-1" style="justify-content: center;">
-                        <i class="bi bi-check-circle-fill"></i>
-                        Proses Pembayaran
+        <!-- Category Filter -->
+        <div class="card mb-2">
+            <div class="card-body" style="padding: 12px 16px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn btn-secondary btn-sm category-btn active" data-kategori="" onclick="filterKategori(this, '')">
+                        <i class="bi bi-grid"></i> Semua
                     </button>
-                </form>
+                    {% for k in kategori_data %}
+                    <button type="button" class="btn btn-secondary btn-sm category-btn" data-kategori="{{ k.id }}" onclick="filterKategori(this, {{ k.id }})">
+                        <i class="{{ k.icon }}"></i> {{ k.nama }}
+                    </button>
+                    {% endfor %}
+                    <div style="flex: 1;"></div>
+                    <input type="text" id="searchProduk" class="form-input" placeholder="Cari produk..." 
+                        style="width: 200px; margin: 0; padding: 8px 12px;" onkeyup="searchProduk(this.value)">
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Right: Info -->
-    <div>
-        <!-- NFC Scan Shortcut -->
-        <div class="scan-card mb-2" onclick="simulateNFCScan()" style="padding: 24px;">
-            <div class="scan-card-icon" style="margin-bottom: 12px;">
-                <i class="bi bi-nfc"></i>
-            </div>
-            <h3>TAP KARTU NFC</h3>
-            <p>Tempelkan Kartu Pintar untuk pembayaran cepat</p>
-        </div>
-
-        <!-- Recent Transactions -->
+        <!-- Products Grid -->
         <div class="card">
             <div class="card-header">
-                <h2><i class="bi bi-clock-history" style="color: var(--gold-400);"></i> Transaksi Terakhir</h2>
+                <h2><i class="bi bi-box-seam-fill" style="color: var(--gold-400);"></i> Pilih Produk</h2>
             </div>
             <div class="card-body" style="padding: 0;">
-                {% for t in transaksi_terbaru %}
-                <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
-                    <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(197, 164, 78, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <i class="bi bi-cart-fill" style="color: var(--gold-400); font-size: 14px;"></i>
+                <div id="produkGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px; max-height: 400px; overflow-y: auto;">
+                    {% for p in produk_data %}
+                    <div class="produk-item" data-id="{{ p.id }}" data-nama="{{ p.nama }}" data-harga="{{ p.harga }}" 
+                        data-stok="{{ p.stok }}" data-kategori="{{ p.kategori_id }}" data-search="{{ p.nama|lower }} {{ p.kode|lower }}"
+                        onclick="addToCart({{ p.id }}, '{{ p.nama }}', {{ p.harga }}, {{ p.stok }})"
+                        style="background: var(--bg-secondary); border-radius: 10px; padding: 14px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;">
+                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">{{ p.kode }}</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">{{ p.nama }}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold-400);">{{ p.harga|rupiah }}</div>
+                            <div style="font-size: 10px; color: {% if p.stok <= p.stok_minimum %}var(--red-300){% else %}var(--text-muted){% endif %};">
+                                {{ p.stok }} {{ p.satuan }}
+                            </div>
+                        </div>
                     </div>
-                    <div style="flex: 1;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ t.nama }}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">{{ t.keterangan }}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 13px; font-weight: 600; color: {% if t.status == 'Gagal' %}var(--red-300){% else %}var(--text-accent){% endif %};">-{{ t.nominal|rupiah }}</div>
-                        <div style="font-size: 10px; color: var(--text-muted);">{{ t.waktu|datetime_format }}</div>
-                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-                {% if not transaksi_terbaru %}
-                <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-                    Belum ada transaksi
+                {% if not produk_data %}
+                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    <i class="bi bi-box" style="font-size: 36px; opacity: 0.5;"></i>
+                    <p>Belum ada produk</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
+
+    <!-- Right: Cart & Payment -->
+    <div>
+        <!-- NFC/QR Tap -->
+        <div class="scan-card mb-2" onclick="showTapModal()" style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="scan-card-icon" style="margin: 0; width: 50px; height: 50px;">
+                    <i class="bi bi-nfc" style="font-size: 24px;"></i>
+                </div>
+                <div style="text-align: left;">
+                    <h3 style="margin: 0; font-size: 16px;">TAP UNTUK BAYAR</h3>
+                    <p style="margin: 4px 0 0; font-size: 12px;">NFC atau Scan QR Code</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shopping Cart -->
+        <div class="card mb-2">
+            <div class="card-header">
+                <h2><i class="bi bi-cart-fill" style="color: var(--gold-400);"></i> Keranjang</h2>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div id="cartItems" style="max-height: 250px; overflow-y: auto;">
+                    <div id="cartEmpty" style="padding: 30px; text-align: center; color: var(--text-muted);">
+                        <i class="bi bi-cart" style="font-size: 32px; opacity: 0.5;"></i>
+                        <p style="margin-top: 8px;">Keranjang kosong</p>
+                    </div>
+                </div>
+                
+                <!-- Total -->
+                <div style="padding: 16px; border-top: 2px solid var(--border-color); background: var(--bg-secondary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-muted); font-size: 14px;">Total (<span id="cartCount">0</span> item)</span>
+                        <span style="font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--gold-400);" id="cartTotal">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-credit-card-fill" style="color: var(--gold-400);"></i> Pembayaran</h2>
+            </div>
+            <div class="card-body">
+                <!-- Select Member -->
+                <div class="form-group">
+                    <label class="form-label">Pilih Anggota</label>
+                    <select id="selectAnggota" class="form-select">
+                        <option value="">— Pilih / Tap Kartu —</option>
+                        {% for a in anggota_data %}
+                        {% if a.status_kartu == 'Aktif' %}
+                        <option value="{{ a.kartu_id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}" data-pangkat="{{ a.pangkat }}">
+                            {{ a.nama }} — {{ a.pangkat }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Member Info -->
+                <div id="memberInfo" style="display: none; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
+                        <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-person-fill" style="font-size: 18px; color: var(--gold-400);"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--text-primary);" id="infoNama">-</div>
+                            <div style="font-size: 12px; color: var(--text-muted);" id="infoPangkat">-</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Saldo</div>
+                            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gold-400);" id="infoSaldo">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="btnBayar" class="btn btn-primary btn-lg w-100" style="justify-content: center;" onclick="prosesPayment()" disabled>
+                    <i class="bi bi-check-circle-fill"></i>
+                    Proses Pembayaran
+                </button>
+
+                <div style="margin-top: 12px; text-align: center;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearCart()">
+                        <i class="bi bi-trash"></i> Kosongkan Keranjang
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Tap Modal (NFC/QR) -->
+<div id="tapModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-card); border-radius: 20px; padding: 32px; width: 90%; max-width: 400px; text-align: center; border: 1px solid var(--border-color);">
+        <div id="tapStep1">
+            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-400), var(--gold-500)); display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
+                <i class="bi bi-nfc" style="font-size: 48px; color: var(--bg-dark);"></i>
+            </div>
+            <h3 style="color: var(--text-primary); margin-bottom: 8px;">Tempelkan Kartu</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Dekatkan Kartu Pintar ke NFC reader atau scan QR Code</p>
+            
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="manualScan" class="form-input" placeholder="Atau ketik ID kartu..." style="flex: 1;">
+                <button type="button" class="btn btn-primary" onclick="processTap()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            
+            <button type="button" class="btn btn-secondary mt-2 w-100" onclick="closeTapModal()">Batal</button>
+        </div>
+
+        <div id="tapStep2" style="display: none;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 20px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-person-check-fill" style="font-size: 36px; color: var(--gold-400);"></i>
+            </div>
+            <h3 style="color: var(--text-primary);" id="tapNama">-</h3>
+            <p style="color: var(--text-muted);" id="tapPangkat">-</p>
+            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--gold-400); margin: 16px 0;" id="tapSaldo">Rp 0</div>
+            
+            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 10px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Total Belanja:</span>
+                    <span style="font-weight: 600; color: var(--text-primary);" id="tapTotal">Rp 0</span>
+                </div>
+            </div>
+            
+            <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmTapPayment()" id="tapConfirmBtn">
+                <i class="bi bi-check-circle-fill"></i> Bayar Sekarang
+            </button>
+            <button type="button" class="btn btn-secondary mt-1 w-100" onclick="closeTapModal()">Batal</button>
+        </div>
+
+        <div id="tapSuccess" style="display: none;">
+            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: var(--success); display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-check-lg" style="font-size: 48px; color: white;"></i>
+            </div>
+            <h3 style="color: var(--success);">Pembayaran Berhasil!</h3>
+            <p style="color: var(--text-muted);" id="successMessage">-</p>
+            <button type="button" class="btn btn-primary mt-2 w-100" onclick="location.reload()">
+                <i class="bi bi-arrow-repeat"></i> Transaksi Baru
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+}
+.produk-item:hover {
+    border-color: var(--gold-400) !important;
+    transform: translateY(-2px);
+}
+.produk-item.in-cart {
+    border-color: var(--gold-400) !important;
+    background: rgba(197, 164, 78, 0.1) !important;
+}
+.category-btn.active {
+    background: var(--gold-400) !important;
+    color: var(--bg-dark) !important;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Initialize numpad
-let currentAmount = '';
+// Cart state
+let cart = [];
+let selectedAnggota = null;
+let tapAnggota = null;
 
-function numpadPress(val) {
-    const display = document.getElementById('amountValue');
-    const hiddenInput = document.getElementById('amountInput');
-
-    if (val === 'C') {
-        currentAmount = '';
-    } else if (val === 'DEL') {
-        currentAmount = currentAmount.slice(0, -1);
-    } else {
-        if (currentAmount.length < 9) {
-            currentAmount += val;
+// Filter by category
+function filterKategori(btn, kategoriId) {
+    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    document.querySelectorAll('.produk-item').forEach(item => {
+        if (!kategoriId || item.dataset.kategori == kategoriId) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
         }
-    }
-
-    display.textContent = currentAmount ? parseInt(currentAmount).toLocaleString('id-ID') : '0';
-    hiddenInput.value = currentAmount || '0';
+    });
 }
 
-function setQuickAmount(val) {
-    currentAmount = val.toString();
-    document.getElementById('amountValue').textContent = parseInt(currentAmount).toLocaleString('id-ID');
-    document.getElementById('amountInput').value = currentAmount;
+// Search products
+function searchProduk(query) {
+    query = query.toLowerCase();
+    document.querySelectorAll('.produk-item').forEach(item => {
+        if (item.dataset.search.includes(query)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Add to cart
+function addToCart(id, nama, harga, stok) {
+    const existing = cart.find(c => c.id === id);
+    if (existing) {
+        if (existing.jumlah < stok) {
+            existing.jumlah++;
+        } else {
+            alert('Stok tidak mencukupi!');
+            return;
+        }
+    } else {
+        cart.push({ id, nama, harga, stok, jumlah: 1 });
+    }
+    updateCartUI();
+}
+
+// Remove from cart
+function removeFromCart(id) {
+    cart = cart.filter(c => c.id !== id);
+    updateCartUI();
+}
+
+// Update quantity
+function updateQty(id, delta) {
+    const item = cart.find(c => c.id === id);
+    if (item) {
+        item.jumlah += delta;
+        if (item.jumlah <= 0) {
+            removeFromCart(id);
+        } else if (item.jumlah > item.stok) {
+            item.jumlah = item.stok;
+            alert('Stok maksimal: ' + item.stok);
+        }
+    }
+    updateCartUI();
+}
+
+// Update cart UI
+function updateCartUI() {
+    const container = document.getElementById('cartItems');
+    const emptyMsg = document.getElementById('cartEmpty');
+    const totalEl = document.getElementById('cartTotal');
+    const countEl = document.getElementById('cartCount');
+    const btnBayar = document.getElementById('btnBayar');
+    
+    // Mark products in cart
+    document.querySelectorAll('.produk-item').forEach(item => {
+        item.classList.remove('in-cart');
+        if (cart.find(c => c.id == item.dataset.id)) {
+            item.classList.add('in-cart');
+        }
+    });
+    
+    if (cart.length === 0) {
+        emptyMsg.style.display = 'block';
+        container.querySelectorAll('.cart-item').forEach(el => el.remove());
+        totalEl.textContent = 'Rp 0';
+        countEl.textContent = '0';
+        btnBayar.disabled = true;
+        return;
+    }
+    
+    emptyMsg.style.display = 'none';
+    
+    let html = '';
+    let total = 0;
+    let count = 0;
+    
+    cart.forEach(item => {
+        const subtotal = item.harga * item.jumlah;
+        total += subtotal;
+        count += item.jumlah;
+        
+        html += `
+            <div class="cart-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${item.nama}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Rp ${item.harga.toLocaleString('id-ID')} × ${item.jumlah}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.id}, -1)" style="padding: 4px 8px;">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                    <span style="min-width: 24px; text-align: center; color: var(--text-primary);">${item.jumlah}</span>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.id}, 1)" style="padding: 4px 8px;">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+                <div style="text-align: right; min-width: 80px;">
+                    <div style="font-weight: 600; color: var(--gold-400);">Rp ${subtotal.toLocaleString('id-ID')}</div>
+                </div>
+                <button type="button" onclick="removeFromCart(${item.id})" style="background: none; border: none; color: var(--red-300); cursor: pointer; padding: 4px;">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    // Remove old items and add new
+    container.querySelectorAll('.cart-item').forEach(el => el.remove());
+    container.insertAdjacentHTML('afterbegin', html);
+    
+    totalEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
+    countEl.textContent = count;
+    
+    // Enable pay button if member selected
+    btnBayar.disabled = !selectedAnggota || cart.length === 0;
+}
+
+// Clear cart
+function clearCart() {
+    if (cart.length > 0 && confirm('Kosongkan keranjang?')) {
+        cart = [];
+        updateCartUI();
+    }
 }
 
 // Member selection
 document.getElementById('selectAnggota').addEventListener('change', function() {
     const info = document.getElementById('memberInfo');
     const opt = this.options[this.selectedIndex];
-
+    
     if (this.value) {
+        selectedAnggota = {
+            kartu_id: this.value,
+            nama: opt.dataset.nama,
+            pangkat: opt.dataset.pangkat,
+            saldo: parseInt(opt.dataset.saldo)
+        };
         info.style.display = 'block';
-        document.getElementById('infoNama').textContent = opt.dataset.nama;
-        document.getElementById('infoPangkat').textContent = opt.dataset.pangkat;
-        document.getElementById('infoSaldo').textContent = 'Rp ' + parseInt(opt.dataset.saldo).toLocaleString('id-ID');
+        document.getElementById('infoNama').textContent = selectedAnggota.nama;
+        document.getElementById('infoPangkat').textContent = selectedAnggota.pangkat;
+        document.getElementById('infoSaldo').textContent = 'Rp ' + selectedAnggota.saldo.toLocaleString('id-ID');
     } else {
+        selectedAnggota = null;
         info.style.display = 'none';
     }
+    updateCartUI();
+});
+
+// Process payment (manual select)
+function prosesPayment() {
+    if (!selectedAnggota || cart.length === 0) return;
+    
+    const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
+    if (selectedAnggota.saldo < total) {
+        alert('Saldo tidak cukup! Saldo: Rp ' + selectedAnggota.saldo.toLocaleString('id-ID'));
+        return;
+    }
+    
+    if (!confirm(`Proses pembayaran Rp ${total.toLocaleString('id-ID')} untuk ${selectedAnggota.nama}?`)) return;
+    
+    // Call API
+    const items = cart.map(c => ({ produk_id: c.id, jumlah: c.jumlah }));
+    
+    fetch('/api/pembayaran/cart', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({
+            kartu_id: selectedAnggota.kartu_id,
+            items: items,
+            metode: 'Manual'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Pembayaran berhasil!\nTrx: ' + data.data.trx_id + '\nSisa saldo: Rp ' + data.data.saldo_sesudah.toLocaleString('id-ID'));
+            location.reload();
+        } else {
+            alert('Gagal: ' + data.message);
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+// TAP MODAL
+function showTapModal() {
+    if (cart.length === 0) {
+        alert('Keranjang masih kosong!');
+        return;
+    }
+    document.getElementById('tapModal').style.display = 'flex';
+    document.getElementById('tapStep1').style.display = 'block';
+    document.getElementById('tapStep2').style.display = 'none';
+    document.getElementById('tapSuccess').style.display = 'none';
+    document.getElementById('manualScan').value = '';
+    document.getElementById('manualScan').focus();
+}
+
+function closeTapModal() {
+    document.getElementById('tapModal').style.display = 'none';
+    tapAnggota = null;
+}
+
+// Process tap (find member)
+function processTap() {
+    const scanData = document.getElementById('manualScan').value.trim();
+    if (!scanData) return;
+    
+    fetch('/api/pembayaran/tap', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({ scan_data: scanData, items: [], metode: 'NFC' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.data.ready_to_pay) {
+            tapAnggota = data.data.anggota;
+            const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
+            
+            document.getElementById('tapStep1').style.display = 'none';
+            document.getElementById('tapStep2').style.display = 'block';
+            document.getElementById('tapNama').textContent = tapAnggota.nama;
+            document.getElementById('tapPangkat').textContent = tapAnggota.pangkat;
+            document.getElementById('tapSaldo').textContent = 'Rp ' + tapAnggota.saldo.toLocaleString('id-ID');
+            document.getElementById('tapTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+            
+            if (tapAnggota.saldo < total) {
+                document.getElementById('tapConfirmBtn').disabled = true;
+                document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-exclamation-triangle"></i> Saldo Tidak Cukup';
+            } else {
+                document.getElementById('tapConfirmBtn').disabled = false;
+                document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-check-circle-fill"></i> Bayar Sekarang';
+            }
+        } else {
+            alert(data.message || 'Kartu tidak ditemukan');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+// Confirm tap payment
+function confirmTapPayment() {
+    if (!tapAnggota) return;
+    
+    const items = cart.map(c => ({ produk_id: c.id, jumlah: c.jumlah }));
+    const scanData = document.getElementById('manualScan').value.trim();
+    
+    fetch('/api/pembayaran/tap', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({ scan_data: scanData, items: items, metode: 'NFC' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('tapStep2').style.display = 'none';
+            document.getElementById('tapSuccess').style.display = 'block';
+            document.getElementById('successMessage').textContent = 
+                'Trx: ' + data.data.trx_id + ' | Sisa saldo: Rp ' + data.data.saldo_sesudah.toLocaleString('id-ID');
+        } else {
+            alert('Gagal: ' + data.message);
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+// Enter key on manual scan
+document.getElementById('manualScan').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') processTap();
 });
 </script>
 {% endblock %}
