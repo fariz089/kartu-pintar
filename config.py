@@ -41,6 +41,9 @@ class Config:
     # Pagination
     ITEMS_PER_PAGE = 20
 
+    # Google Maps API Key
+    GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+
     # ============================================================
     # Google Find Hub - Tracker Mapping
     # ============================================================
