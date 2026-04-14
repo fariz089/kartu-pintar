@@ -6,7 +6,7 @@
 {% block content %}
 <div class="section-header">
     <div>
-        <p class="text-muted" style="font-size: 14px;">Kelola data anggota pemegang Kartu Pintar</p>
+        <p class="text-muted" style="font-size: 14px;">Kelola data anggota pemegang Smart Card</p>
     </div>
     {% if session.get('role') == 'admin' %}
     <a href="{{ url_for('anggota_tambah') }}" class="btn btn-primary">

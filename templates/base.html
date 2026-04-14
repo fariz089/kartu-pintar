@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Kartu Pintar{% endblock %} — Poltekkad</title>
+    <title>{% block title %}Smart Card{% endblock %} — Poltekkad</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,10 +22,10 @@
         <div class="sidebar-header">
             <div class="sidebar-logo">
                 <div class="logo-icon">
-                    <i class="bi bi-shield-fill-check"></i>
+                    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="width: 40px; height: 40px; object-fit: contain;">
                 </div>
                 <div class="logo-text">
-                    <span class="logo-title">KARTU PINTAR</span>
+                    <span class="logo-title">SMART CARD</span>
                     <span class="logo-subtitle">POLTEKKAD</span>
                 </div>
             </div>

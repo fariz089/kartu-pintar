@@ -242,7 +242,7 @@ class FindMyLocationService:
                 db.session.commit()
                 logger.info(f"Updated {anggota.nama}: {latest['latitude']:.6f}, {latest['longitude']:.6f}")
 
-    def start_worker(self, interval=300):
+    def start_worker(self, interval=60):
         """Background thread: fetch lokasi tiap N detik"""
         if self._running:
             return
@@ -311,7 +311,7 @@ def register_findmy_routes(app, findmy_service):
 # findmy = FindMyLocationService()
 # findmy.init_app(app)
 # register_findmy_routes(app, findmy)
-# # findmy.start_worker(interval=300)  # Uncomment untuk auto-update tiap 5 menit
+# # findmy.start_worker(interval=60)  # Uncomment untuk auto-update tiap 1 menit
 #
 # Dan di config.py tambahkan:
 #
