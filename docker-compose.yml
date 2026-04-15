@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: kartu-pintar-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: KartuPintar2025!
+      MYSQL_DATABASE: kartu_pintar
+      MYSQL_USER: kartu_pintar
+      MYSQL_PASSWORD: KartuPintar2025!
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: kartu-pintar-web
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=kartu-pintar-production-secret-2025-poltekad
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=kartu_pintar
+      - DB_PASSWORD=KartuPintar2025!
+      - DB_NAME=kartu_pintar
+    volumes:
+      - uploads_data:/app/static/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: kartu-pintar-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token eyJhIjoiMzMxNzU2MDBhMmM3OGQzMTQwMjk2MDI5ZmRhZjNlYmEiLCJ0IjoiOWU4ZGI1Y2EtNWJmYi00MDFkLTgxM2UtNGQ0MzIwYjAwODIyIiwicyI6IllqQTRNbUpsWW1FdFltSmlZUzAwT1RSaUxUaGhZV1V0TnpjeFkyUXdOelpoTkRGayJ9
+    depends_on:
+      - web
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  uploads_data:
