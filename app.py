@@ -1926,12 +1926,12 @@ if __name__ == '__main__':
         findmy.init_app(app)
         register_findmy_routes(app, findmy)
 
-        # Auto-update lokasi setiap 5 menit
+        # Auto-update lokasi setiap 1 menit
         findmy.start_worker(interval=app.config.get('FINDMY_UPDATE_INTERVAL', 60))
 
         print("[FindMy] Google Find Hub integration aktif!")
         print(f"[FindMy] Tracker mapping: {len(app.config.get('FINDMY_TRACKER_MAP', {}))} device(s)")
-        print("[FindMy] Auto-update lokasi setiap 5 menit.")
+        print("[FindMy] Auto-update lokasi setiap 1 menit.")
     except Exception as e:
         print(f"[FindMy] Integration tidak aktif: {e}")
 

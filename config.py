@@ -53,8 +53,8 @@ class Config:
     # TIDAK PERLU LAGI hardcode FINDMY_TRACKER_MAP di sini!
     # ============================================================
 
-    # Interval update lokasi otomatis (dalam detik, default 5 menit)
-    FINDMY_UPDATE_INTERVAL = int(os.environ.get('FINDMY_UPDATE_INTERVAL', 300))
+    # Interval update lokasi otomatis (dalam detik, default 1 menit)
+    FINDMY_UPDATE_INTERVAL = int(os.environ.get('FINDMY_UPDATE_INTERVAL', 60))
 
 
 class DevelopmentConfig(Config):
