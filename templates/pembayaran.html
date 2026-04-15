@@ -155,64 +155,469 @@
 </div>
 
 <!-- Tap Modal (NFC/QR) -->
-<div id="tapModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: var(--bg-card); border-radius: 20px; padding: 32px; width: 90%; max-width: 400px; text-align: center; border: 1px solid var(--border-color);">
+<div id="tapModal" class="pos-modal">
+    <div class="pos-modal-content">
+        <!-- Step 1: Scan Method Selection -->
         <div id="tapStep1">
-            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-400), var(--gold-500)); display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
-                <i class="bi bi-nfc" style="font-size: 48px; color: var(--bg-dark);"></i>
+            <div class="pos-modal-header">
+                <h3><i class="bi bi-credit-card"></i> Pilih Metode Pembayaran</h3>
+                <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
             </div>
-            <h3 style="color: var(--text-primary); margin-bottom: 8px;">Tempelkan Kartu</h3>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Dekatkan Smart Card ke NFC reader atau scan QR Code</p>
-            
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="manualScan" class="form-input" placeholder="Atau ketik ID kartu..." style="flex: 1;">
-                <button type="button" class="btn btn-primary" onclick="processTap()">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-            
-            <button type="button" class="btn btn-secondary mt-2 w-100" onclick="closeTapModal()">Batal</button>
-        </div>
-
-        <div id="tapStep2" style="display: none;">
-            <div style="width: 80px; height: 80px; margin: 0 auto 20px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-person-check-fill" style="font-size: 36px; color: var(--gold-400);"></i>
-            </div>
-            <h3 style="color: var(--text-primary);" id="tapNama">-</h3>
-            <p style="color: var(--text-muted);" id="tapPangkat">-</p>
-            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--gold-400); margin: 16px 0;" id="tapSaldo">Rp 0</div>
-            
-            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 10px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: var(--text-muted);">Total Belanja:</span>
-                    <span style="font-weight: 600; color: var(--text-primary);" id="tapTotal">Rp 0</span>
+            <div class="pos-modal-body">
+                <div class="tap-total-preview">
+                    <span>Total Belanja</span>
+                    <span id="tapPreviewTotal">Rp 0</span>
+                </div>
+                
+                <div class="tap-method-grid">
+                    <div class="tap-method-card" onclick="showNFCInput()">
+                        <div class="tap-method-icon nfc">
+                            <i class="bi bi-nfc"></i>
+                        </div>
+                        <h4>NFC / Manual</h4>
+                        <p>Tap kartu atau input ID</p>
+                    </div>
+                    <div class="tap-method-card" onclick="showQRScanner()">
+                        <div class="tap-method-icon qr">
+                            <i class="bi bi-qr-code-scan"></i>
+                        </div>
+                        <h4>Scan QR</h4>
+                        <p>Gunakan kamera</p>
+                    </div>
                 </div>
             </div>
-            
-            <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmTapPayment()" id="tapConfirmBtn">
-                <i class="bi bi-check-circle-fill"></i> Bayar Sekarang
-            </button>
-            <button type="button" class="btn btn-secondary mt-1 w-100" onclick="closeTapModal()">Batal</button>
+        </div>
+        
+        <!-- Step 1b: NFC Input -->
+        <div id="tapNFCInput" style="display: none;">
+            <div class="pos-modal-header">
+                <button class="pos-modal-back" onclick="backToMethodSelect()"><i class="bi bi-arrow-left"></i></button>
+                <h3><i class="bi bi-nfc"></i> Scan NFC</h3>
+                <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="pos-modal-body">
+                <div class="nfc-animation">
+                    <div class="nfc-pulse"></div>
+                    <i class="bi bi-credit-card-fill"></i>
+                </div>
+                <h4>Tempelkan Kartu ke NFC Reader</h4>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">NFC Reader akan otomatis input saat kartu di-tap</p>
+                
+                <div class="scan-input-group">
+                    <input type="text" id="manualScan" class="form-input" placeholder="Masukkan NFC UID / ID Kartu..." autocomplete="off">
+                    <button type="button" class="btn btn-primary" onclick="processTap()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step 1c: QR Scanner -->
+        <div id="tapQRScanner" style="display: none;">
+            <div class="pos-modal-header">
+                <button class="pos-modal-back" onclick="backToMethodSelect()"><i class="bi bi-arrow-left"></i></button>
+                <h3><i class="bi bi-qr-code-scan"></i> Scan QR Code</h3>
+                <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="pos-modal-body">
+                <div id="posQRContainer">
+                    <div id="posQRLoading" class="qr-loading">
+                        <div class="spinner"></div>
+                        <p>Memuat kamera...</p>
+                    </div>
+                    <video id="posQRVideo" playsinline></video>
+                    <div class="qr-overlay">
+                        <div class="qr-frame"></div>
+                    </div>
+                    <div id="posQRError" class="qr-error" style="display: none;">
+                        <i class="bi bi-camera-video-off"></i>
+                        <p>Tidak dapat mengakses kamera</p>
+                        <button class="btn btn-secondary btn-sm" onclick="startPOSQRScanner()">Coba Lagi</button>
+                    </div>
+                </div>
+                
+                <div class="scan-divider"><span>atau input manual</span></div>
+                
+                <div class="scan-input-group">
+                    <input type="text" id="qrManualInput" class="form-input" placeholder="Masukkan QR Data..." autocomplete="off">
+                    <button type="button" class="btn btn-primary" onclick="processQRInput()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div id="tapSuccess" style="display: none;">
-            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: var(--success); display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-check-lg" style="font-size: 48px; color: white;"></i>
+        <!-- Step 2: Confirm Payment -->
+        <div id="tapStep2" style="display: none;">
+            <div class="pos-modal-header">
+                <h3><i class="bi bi-person-check"></i> Konfirmasi Pembayaran</h3>
+                <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
             </div>
-            <h3 style="color: var(--success);">Pembayaran Berhasil!</h3>
-            <p style="color: var(--text-muted);" id="successMessage">-</p>
-            <button type="button" class="btn btn-primary mt-2 w-100" onclick="location.reload()">
-                <i class="bi bi-arrow-repeat"></i> Transaksi Baru
-            </button>
+            <div class="pos-modal-body">
+                <div class="tap-member-info">
+                    <div class="tap-member-avatar">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <h4 id="tapNama">-</h4>
+                    <p id="tapPangkat">-</p>
+                </div>
+                
+                <div class="tap-saldo-display">
+                    <span>Saldo</span>
+                    <span id="tapSaldo">Rp 0</span>
+                </div>
+                
+                <div class="tap-payment-summary">
+                    <div class="tap-summary-row">
+                        <span>Total Belanja</span>
+                        <span id="tapTotal">Rp 0</span>
+                    </div>
+                    <div class="tap-summary-row highlight" id="tapSisaRow">
+                        <span>Sisa Saldo</span>
+                        <span id="tapSisa">Rp 0</span>
+                    </div>
+                </div>
+                
+                <div id="tapWarning" class="tap-warning" style="display: none;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Saldo tidak mencukupi!</span>
+                </div>
+                
+                <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmTapPayment()" id="tapConfirmBtn">
+                    <i class="bi bi-check-circle-fill"></i> Bayar Sekarang
+                </button>
+                <button type="button" class="btn btn-secondary mt-1 w-100" onclick="backToMethodSelect()">
+                    <i class="bi bi-arrow-left"></i> Pilih Kartu Lain
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="tapSuccess" style="display: none;">
+            <div class="pos-modal-body" style="padding: 40px 24px;">
+                <div class="tap-success-icon">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h3 style="color: var(--green-400); margin-bottom: 8px;">Pembayaran Berhasil!</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px;" id="successMessage">-</p>
+                <button type="button" class="btn btn-primary w-100" onclick="location.reload()">
+                    <i class="bi bi-arrow-repeat"></i> Transaksi Baru
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.8; }
+/* POS Modal Styles */
+.pos-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
+.pos-modal.active {
+    display: flex;
+}
+.pos-modal-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+.pos-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 12px;
+}
+.pos-modal-header h3 {
+    flex: 1;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    color: var(--gold-400);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pos-modal-close, .pos-modal-back {
+    background: var(--bg-secondary);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.pos-modal-close:hover { background: var(--red-500); color: white; }
+.pos-modal-back:hover { background: var(--olive-600); color: var(--gold-400); }
+.pos-modal-body {
+    padding: 24px 20px;
+}
+
+/* Tap Preview Total */
+.tap-total-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+.tap-total-preview span:first-child {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.tap-total-preview span:last-child {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    color: var(--gold-400);
+}
+
+/* Method Grid */
+.tap-method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.tap-method-card {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.tap-method-card:hover {
+    border-color: var(--gold-400);
+    transform: translateY(-2px);
+}
+.tap-method-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.tap-method-icon.nfc {
+    background: linear-gradient(135deg, var(--gold-400), var(--gold-500));
+    color: var(--bg-dark);
+}
+.tap-method-icon.qr {
+    background: linear-gradient(135deg, #4a7a8c, #5a9aac);
+    color: white;
+}
+.tap-method-card h4 {
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.tap-method-card p {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* NFC Animation */
+.nfc-animation {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 16px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nfc-animation i { font-size: 40px; color: var(--gold-400); z-index: 1; }
+.nfc-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--gold-400);
+    opacity: 0.2;
+    animation: nfcPulse 2s ease-out infinite;
+}
+@keyframes nfcPulse {
+    0% { transform: scale(0.8); opacity: 0.4; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Scan Input */
+.scan-input-group {
+    display: flex;
+    gap: 8px;
+}
+.scan-input-group .form-input { flex: 1; }
+.scan-divider {
+    display: flex;
+    align-items: center;
+    margin: 16px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.scan-divider::before, .scan-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+.scan-divider span { padding: 0 12px; }
+
+/* QR Scanner */
+#posQRContainer {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+#posQRVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.qr-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qr-frame {
+    width: 160px;
+    height: 160px;
+    border: 3px solid var(--gold-400);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+.qr-loading, .qr-error {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+.qr-error i { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+.spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--gold-400);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Member Info */
+.tap-member-info {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.tap-member-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: var(--olive-600);
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--gold-400);
+}
+.tap-member-avatar i { font-size: 32px; color: var(--gold-400); }
+.tap-member-info h4 { color: var(--text-primary); margin-bottom: 4px; }
+.tap-member-info p { color: var(--text-muted); font-size: 13px; }
+
+.tap-saldo-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+.tap-saldo-display span:first-child { color: var(--text-muted); font-size: 13px; }
+.tap-saldo-display span:last-child {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--gold-400);
+}
+
+.tap-payment-summary {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+.tap-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.tap-summary-row span:last-child { color: var(--text-primary); font-weight: 500; }
+.tap-summary-row.highlight {
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+    padding-top: 12px;
+}
+.tap-summary-row.highlight span:last-child {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--gold-400);
+}
+
+.tap-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(220, 53, 69, 0.15);
+    border: 1px solid var(--red-400);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    color: var(--red-400);
+    font-size: 13px;
+}
+
+.tap-success-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--green-500);
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tap-success-icon i { font-size: 40px; color: white; }
+
 .produk-item:hover {
     border-color: var(--gold-400) !important;
     transform: translateY(-2px);
@@ -441,54 +846,173 @@ function prosesPayment() {
 }
 
 // TAP MODAL
+let posQRStream = null;
+let posQRAnimationFrame = null;
+let currentScanData = '';
+
 function showTapModal() {
     if (cart.length === 0) {
         alert('Keranjang masih kosong!');
         return;
     }
-    document.getElementById('tapModal').style.display = 'flex';
+    const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
+    document.getElementById('tapPreviewTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    
+    document.getElementById('tapModal').classList.add('active');
     document.getElementById('tapStep1').style.display = 'block';
+    document.getElementById('tapNFCInput').style.display = 'none';
+    document.getElementById('tapQRScanner').style.display = 'none';
     document.getElementById('tapStep2').style.display = 'none';
     document.getElementById('tapSuccess').style.display = 'none';
+    tapAnggota = null;
+    currentScanData = '';
+}
+
+function closeTapModal() {
+    document.getElementById('tapModal').classList.remove('active');
+    stopPOSQRScanner();
+    tapAnggota = null;
+    currentScanData = '';
+}
+
+function backToMethodSelect() {
+    stopPOSQRScanner();
+    document.getElementById('tapStep1').style.display = 'block';
+    document.getElementById('tapNFCInput').style.display = 'none';
+    document.getElementById('tapQRScanner').style.display = 'none';
+    document.getElementById('tapStep2').style.display = 'none';
+    currentScanData = '';
+}
+
+function showNFCInput() {
+    document.getElementById('tapStep1').style.display = 'none';
+    document.getElementById('tapNFCInput').style.display = 'block';
     document.getElementById('manualScan').value = '';
     document.getElementById('manualScan').focus();
 }
 
-function closeTapModal() {
-    document.getElementById('tapModal').style.display = 'none';
-    tapAnggota = null;
+function showQRScanner() {
+    document.getElementById('tapStep1').style.display = 'none';
+    document.getElementById('tapQRScanner').style.display = 'block';
+    document.getElementById('qrManualInput').value = '';
+    startPOSQRScanner();
+}
+
+// QR Scanner
+async function startPOSQRScanner() {
+    const video = document.getElementById('posQRVideo');
+    const loading = document.getElementById('posQRLoading');
+    const error = document.getElementById('posQRError');
+    
+    loading.style.display = 'flex';
+    error.style.display = 'none';
+    
+    try {
+        posQRStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        video.srcObject = posQRStream;
+        await video.play();
+        loading.style.display = 'none';
+        scanPOSQRCode();
+    } catch (err) {
+        console.error('Camera error:', err);
+        loading.style.display = 'none';
+        error.style.display = 'flex';
+    }
+}
+
+function stopPOSQRScanner() {
+    if (posQRAnimationFrame) {
+        cancelAnimationFrame(posQRAnimationFrame);
+        posQRAnimationFrame = null;
+    }
+    if (posQRStream) {
+        posQRStream.getTracks().forEach(track => track.stop());
+        posQRStream = null;
+    }
+}
+
+function scanPOSQRCode() {
+    const video = document.getElementById('posQRVideo');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+            
+            if (code) {
+                stopPOSQRScanner();
+                currentScanData = code.data;
+                processTapScan(code.data, 'QR');
+                return;
+            }
+        }
+        posQRAnimationFrame = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+function processQRInput() {
+    const val = document.getElementById('qrManualInput').value.trim();
+    if (val) {
+        stopPOSQRScanner();
+        currentScanData = val;
+        processTapScan(val, 'QR');
+    }
 }
 
 // Process tap (find member)
 function processTap() {
     const scanData = document.getElementById('manualScan').value.trim();
     if (!scanData) return;
-    
+    currentScanData = scanData;
+    processTapScan(scanData, 'NFC');
+}
+
+function processTapScan(scanData, metode) {
     fetch('/api/pembayaran/tap', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
         },
-        body: JSON.stringify({ scan_data: scanData, items: [], metode: 'NFC' })
+        body: JSON.stringify({ scan_data: scanData, items: [], metode: metode })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success && data.data.ready_to_pay) {
             tapAnggota = data.data.anggota;
             const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
+            const sisa = tapAnggota.saldo - total;
             
             document.getElementById('tapStep1').style.display = 'none';
+            document.getElementById('tapNFCInput').style.display = 'none';
+            document.getElementById('tapQRScanner').style.display = 'none';
             document.getElementById('tapStep2').style.display = 'block';
+            
             document.getElementById('tapNama').textContent = tapAnggota.nama;
-            document.getElementById('tapPangkat').textContent = tapAnggota.pangkat;
+            document.getElementById('tapPangkat').textContent = tapAnggota.pangkat + ' — ' + (tapAnggota.jabatan || '');
             document.getElementById('tapSaldo').textContent = 'Rp ' + tapAnggota.saldo.toLocaleString('id-ID');
             document.getElementById('tapTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+            document.getElementById('tapSisa').textContent = 'Rp ' + sisa.toLocaleString('id-ID');
             
             if (tapAnggota.saldo < total) {
+                document.getElementById('tapWarning').style.display = 'flex';
+                document.getElementById('tapSisaRow').style.display = 'none';
                 document.getElementById('tapConfirmBtn').disabled = true;
                 document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-exclamation-triangle"></i> Saldo Tidak Cukup';
             } else {
+                document.getElementById('tapWarning').style.display = 'none';
+                document.getElementById('tapSisaRow').style.display = 'flex';
                 document.getElementById('tapConfirmBtn').disabled = false;
                 document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-check-circle-fill"></i> Bayar Sekarang';
             }
@@ -501,10 +1025,9 @@ function processTap() {
 
 // Confirm tap payment
 function confirmTapPayment() {
-    if (!tapAnggota) return;
+    if (!tapAnggota || !currentScanData) return;
     
     const items = cart.map(c => ({ produk_id: c.id, jumlah: c.jumlah }));
-    const scanData = document.getElementById('manualScan').value.trim();
     
     fetch('/api/pembayaran/tap', {
         method: 'POST',
@@ -512,7 +1035,7 @@ function confirmTapPayment() {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
         },
-        body: JSON.stringify({ scan_data: scanData, items: items, metode: 'NFC' })
+        body: JSON.stringify({ scan_data: currentScanData, items: items, metode: 'NFC' })
     })
     .then(r => r.json())
     .then(data => {
@@ -528,9 +1051,18 @@ function confirmTapPayment() {
     .catch(err => alert('Error: ' + err.message));
 }
 
-// Enter key on manual scan
+// Enter key handlers
 document.getElementById('manualScan').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') processTap();
 });
+document.getElementById('qrManualInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') processQRInput();
+});
+
+// Close with Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTapModal();
+});
 </script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 {% endblock %}

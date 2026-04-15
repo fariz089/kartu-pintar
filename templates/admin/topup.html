@@ -105,97 +105,375 @@
 </div>
 
 <!-- TAP TopUp Modal -->
-<div id="topupTapModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: var(--bg-card); border-radius: 20px; padding: 32px; width: 90%; max-width: 450px; text-align: center; border: 1px solid var(--border-color);">
-        
-        <!-- Step 1: Scan Kartu -->
+<div id="topupTapModal" class="topup-modal">
+    <div class="topup-modal-content">
+        <!-- Step 1: Method Selection -->
         <div id="topupStep1">
-            <div style="width: 100px; height: 100px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, var(--gold-400), var(--gold-500)); display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;">
-                <i class="bi bi-nfc" style="font-size: 48px; color: var(--bg-dark);"></i>
+            <div class="topup-modal-header">
+                <h3><i class="bi bi-wallet-fill"></i> Pilih Metode Scan</h3>
+                <button class="topup-modal-close" onclick="closeTopupTapModal()"><i class="bi bi-x-lg"></i></button>
             </div>
-            <h3 style="color: var(--text-primary); margin-bottom: 8px;">Tempelkan Kartu untuk Top Up</h3>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Dekatkan Smart Card ke NFC reader atau scan QR Code</p>
-            
-            <div style="display: flex; gap: 8px;">
-                <input type="text" id="topupScanInput" class="form-input" placeholder="Scan / Input UID" 
-                    style="flex: 1;" autocomplete="off">
-                <button type="button" class="btn btn-primary" onclick="processTopupScan()">
-                    <i class="bi bi-search"></i>
-                </button>
+            <div class="topup-modal-body">
+                <div class="tap-method-grid">
+                    <div class="tap-method-card" onclick="showTopupNFCInput()">
+                        <div class="tap-method-icon nfc">
+                            <i class="bi bi-nfc"></i>
+                        </div>
+                        <h4>NFC / Manual</h4>
+                        <p>Tap kartu atau input ID</p>
+                    </div>
+                    <div class="tap-method-card" onclick="showTopupQRScanner()">
+                        <div class="tap-method-icon qr">
+                            <i class="bi bi-qr-code-scan"></i>
+                        </div>
+                        <h4>Scan QR</h4>
+                        <p>Gunakan kamera</p>
+                    </div>
+                </div>
             </div>
-            
-            <div style="margin-top: 20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeTopupTapModal()">
-                    <i class="bi bi-x"></i> Batal
-                </button>
+        </div>
+        
+        <!-- Step 1b: NFC Input -->
+        <div id="topupNFCInput" style="display: none;">
+            <div class="topup-modal-header">
+                <button class="topup-modal-back" onclick="backToTopupMethodSelect()"><i class="bi bi-arrow-left"></i></button>
+                <h3><i class="bi bi-nfc"></i> Scan NFC</h3>
+                <button class="topup-modal-close" onclick="closeTopupTapModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="topup-modal-body">
+                <div class="nfc-animation">
+                    <div class="nfc-pulse"></div>
+                    <i class="bi bi-credit-card-fill"></i>
+                </div>
+                <h4 style="color: var(--text-primary); margin-bottom: 8px;">Tempelkan Kartu untuk Top Up</h4>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">NFC Reader akan otomatis input saat kartu di-tap</p>
+                
+                <div class="scan-input-group">
+                    <input type="text" id="topupScanInput" class="form-input" placeholder="Masukkan NFC UID / ID Kartu..." autocomplete="off">
+                    <button type="button" class="btn btn-primary" onclick="processTopupScan()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step 1c: QR Scanner -->
+        <div id="topupQRScanner" style="display: none;">
+            <div class="topup-modal-header">
+                <button class="topup-modal-back" onclick="backToTopupMethodSelect()"><i class="bi bi-arrow-left"></i></button>
+                <h3><i class="bi bi-qr-code-scan"></i> Scan QR Code</h3>
+                <button class="topup-modal-close" onclick="closeTopupTapModal()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="topup-modal-body">
+                <div id="topupQRContainer">
+                    <div id="topupQRLoading" class="qr-loading">
+                        <div class="spinner"></div>
+                        <p>Memuat kamera...</p>
+                    </div>
+                    <video id="topupQRVideo" playsinline></video>
+                    <div class="qr-overlay">
+                        <div class="qr-frame"></div>
+                    </div>
+                    <div id="topupQRError" class="qr-error" style="display: none;">
+                        <i class="bi bi-camera-video-off"></i>
+                        <p>Tidak dapat mengakses kamera</p>
+                        <button class="btn btn-secondary btn-sm" onclick="startTopupQRScanner()">Coba Lagi</button>
+                    </div>
+                </div>
+                
+                <div class="scan-divider"><span>atau input manual</span></div>
+                
+                <div class="scan-input-group">
+                    <input type="text" id="topupQRInput" class="form-input" placeholder="Masukkan QR Data..." autocomplete="off">
+                    <button type="button" class="btn btn-primary" onclick="processTopupQRInput()">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
             </div>
         </div>
         
         <!-- Step 2: Member Found, Enter Amount -->
         <div id="topupStep2" style="display: none;">
-            <div style="width: 70px; height: 70px; margin: 0 auto 16px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-person-check-fill" style="font-size: 32px; color: var(--gold-400);"></i>
+            <div class="topup-modal-header">
+                <h3><i class="bi bi-person-check"></i> Top Up Saldo</h3>
+                <button class="topup-modal-close" onclick="closeTopupTapModal()"><i class="bi bi-x-lg"></i></button>
             </div>
-            <h3 style="color: var(--text-primary); margin-bottom: 4px;" id="topupMemberNama">-</h3>
-            <div style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;" id="topupMemberPangkat">-</div>
-            
-            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 16px;">
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo Saat Ini</div>
-                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--gold-400);" id="topupMemberSaldo">-</div>
-            </div>
-            
-            <div class="form-group" style="text-align: left;">
-                <label class="form-label">Nominal Top Up</label>
-                <input type="number" id="topupNominal" class="form-input" placeholder="Masukkan nominal" min="10000" step="1000">
-            </div>
-            
-            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(50000)">Rp 50.000</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(100000)">Rp 100.000</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(200000)">Rp 200.000</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(500000)">Rp 500.000</button>
-            </div>
-            
-            <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn-secondary" onclick="backToScan()">
-                    <i class="bi bi-arrow-left"></i> Kembali
-                </button>
-                <button type="button" class="btn btn-primary" onclick="confirmTopupTap()" style="flex: 1;">
+            <div class="topup-modal-body">
+                <div class="tap-member-info">
+                    <div class="tap-member-avatar">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <h4 id="topupMemberNama">-</h4>
+                    <p id="topupMemberPangkat">-</p>
+                </div>
+                
+                <div class="tap-saldo-display" style="margin-bottom: 20px;">
+                    <span>Saldo Saat Ini</span>
+                    <span id="topupMemberSaldo">Rp 0</span>
+                </div>
+                
+                <div class="form-group" style="text-align: left;">
+                    <label class="form-label">Nominal Top Up</label>
+                    <input type="number" id="topupNominal" class="form-input" placeholder="Masukkan nominal" min="10000" step="1000">
+                </div>
+                
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(50000)">Rp 50.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(100000)">Rp 100.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(200000)">Rp 200.000</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="setTopupNominal(500000)">Rp 500.000</button>
+                </div>
+                
+                <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmTopupTap()">
                     <i class="bi bi-plus-circle-fill"></i> Proses Top Up
+                </button>
+                <button type="button" class="btn btn-secondary mt-1 w-100" onclick="backToTopupMethodSelect()">
+                    <i class="bi bi-arrow-left"></i> Pilih Kartu Lain
                 </button>
             </div>
         </div>
         
         <!-- Step 3: Success -->
         <div id="topupStep3" style="display: none;">
-            <div style="width: 80px; height: 80px; margin: 0 auto 16px; border-radius: 50%; background: var(--green-500); display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-check-lg" style="font-size: 40px; color: white;"></i>
+            <div class="topup-modal-body" style="padding: 40px 24px;">
+                <div class="tap-success-icon">
+                    <i class="bi bi-check-lg"></i>
+                </div>
+                <h3 style="color: var(--green-400); margin-bottom: 8px;">Top Up Berhasil!</h3>
+                <p style="color: var(--text-muted); margin-bottom: 12px;" id="topupSuccessMsg">-</p>
+                <div class="tap-saldo-display" style="margin-bottom: 20px;">
+                    <span>Saldo Baru</span>
+                    <span id="topupNewSaldo">Rp 0</span>
+                </div>
+                <button type="button" class="btn btn-primary w-100" onclick="closeTopupTapModal(); location.reload();">
+                    <i class="bi bi-check"></i> Selesai
+                </button>
             </div>
-            <h3 style="color: var(--green-400); margin-bottom: 8px;">Top Up Berhasil!</h3>
-            <p style="color: var(--text-muted); margin-bottom: 12px;" id="topupSuccessMsg">-</p>
-            <div style="padding: 16px; background: var(--bg-secondary); border-radius: 12px; margin-bottom: 20px;">
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Saldo Baru</div>
-                <div style="font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold-400);" id="topupNewSaldo">-</div>
-            </div>
-            <button type="button" class="btn btn-secondary" onclick="closeTopupTapModal(); location.reload();">
-                <i class="bi bi-check"></i> Selesai
-            </button>
         </div>
     </div>
 </div>
 
 <style>
-@keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(196, 164, 94, 0.4); }
-    50% { transform: scale(1.02); box-shadow: 0 0 0 15px rgba(196, 164, 94, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(196, 164, 94, 0); }
+/* Topup Modal Styles */
+.topup-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
+.topup-modal.active { display: flex; }
+.topup-modal-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+.topup-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    gap: 12px;
+}
+.topup-modal-header h3 {
+    flex: 1;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    color: var(--gold-400);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.topup-modal-close, .topup-modal-back {
+    background: var(--bg-secondary);
+    border: none;
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.topup-modal-close:hover { background: var(--red-500); color: white; }
+.topup-modal-back:hover { background: var(--olive-600); color: var(--gold-400); }
+.topup-modal-body { padding: 24px 20px; }
+
+/* Reuse styles from pembayaran */
+.tap-method-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.tap-method-card {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.tap-method-card:hover {
+    border-color: var(--gold-400);
+    transform: translateY(-2px);
+}
+.tap-method-icon {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.tap-method-icon.nfc {
+    background: linear-gradient(135deg, var(--gold-400), var(--gold-500));
+    color: var(--bg-dark);
+}
+.tap-method-icon.qr {
+    background: linear-gradient(135deg, #4a7a8c, #5a9aac);
+    color: white;
+}
+.tap-method-card h4 { color: var(--text-primary); font-size: 14px; margin-bottom: 4px; }
+.tap-method-card p { color: var(--text-muted); font-size: 12px; }
+
+.nfc-animation {
+    width: 100px; height: 100px;
+    margin: 0 auto 16px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nfc-animation i { font-size: 40px; color: var(--gold-400); z-index: 1; }
+.nfc-pulse {
+    position: absolute;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: var(--gold-400);
+    opacity: 0.2;
+    animation: nfcPulse 2s ease-out infinite;
+}
+@keyframes nfcPulse {
+    0% { transform: scale(0.8); opacity: 0.4; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+
+.scan-input-group { display: flex; gap: 8px; }
+.scan-input-group .form-input { flex: 1; }
+.scan-divider {
+    display: flex;
+    align-items: center;
+    margin: 16px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.scan-divider::before, .scan-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border-color);
+}
+.scan-divider span { padding: 0 12px; }
+
+#topupQRContainer {
+    position: relative;
+    width: 100%; height: 240px;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+#topupQRVideo { width: 100%; height: 100%; object-fit: cover; }
+.qr-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qr-frame {
+    width: 160px; height: 160px;
+    border: 3px solid var(--gold-400);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+.qr-loading, .qr-error {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+.qr-error i { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+.spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--gold-400);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tap-member-info { text-align: center; margin-bottom: 20px; }
+.tap-member-avatar {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: var(--olive-600);
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--gold-400);
+}
+.tap-member-avatar i { font-size: 32px; color: var(--gold-400); }
+.tap-member-info h4 { color: var(--text-primary); margin-bottom: 4px; }
+.tap-member-info p { color: var(--text-muted); font-size: 13px; }
+
+.tap-saldo-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+}
+.tap-saldo-display span:first-child { color: var(--text-muted); font-size: 13px; }
+.tap-saldo-display span:last-child {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--gold-400);
+}
+
+.tap-success-icon {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: var(--green-500);
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tap-success-icon i { font-size: 40px; color: white; }
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 let topupTapAnggota = null;
+let topupQRStream = null;
+let topupQRAnimationFrame = null;
+let topupCurrentScanData = '';
 
 document.getElementById('topupAnggota').addEventListener('change', function() {
     const info = document.getElementById('topupMemberInfo');
@@ -210,26 +488,116 @@ document.getElementById('topupAnggota').addEventListener('change', function() {
 
 // TAP Modal functions
 function showTopupTapModal() {
-    document.getElementById('topupTapModal').style.display = 'flex';
+    document.getElementById('topupTapModal').classList.add('active');
     document.getElementById('topupStep1').style.display = 'block';
+    document.getElementById('topupNFCInput').style.display = 'none';
+    document.getElementById('topupQRScanner').style.display = 'none';
     document.getElementById('topupStep2').style.display = 'none';
     document.getElementById('topupStep3').style.display = 'none';
-    document.getElementById('topupScanInput').value = '';
-    document.getElementById('topupScanInput').focus();
     topupTapAnggota = null;
+    topupCurrentScanData = '';
 }
 
 function closeTopupTapModal() {
-    document.getElementById('topupTapModal').style.display = 'none';
+    document.getElementById('topupTapModal').classList.remove('active');
+    stopTopupQRScanner();
     topupTapAnggota = null;
+    topupCurrentScanData = '';
 }
 
-function backToScan() {
+function backToTopupMethodSelect() {
+    stopTopupQRScanner();
     document.getElementById('topupStep1').style.display = 'block';
+    document.getElementById('topupNFCInput').style.display = 'none';
+    document.getElementById('topupQRScanner').style.display = 'none';
     document.getElementById('topupStep2').style.display = 'none';
+    topupCurrentScanData = '';
+}
+
+function showTopupNFCInput() {
+    document.getElementById('topupStep1').style.display = 'none';
+    document.getElementById('topupNFCInput').style.display = 'block';
     document.getElementById('topupScanInput').value = '';
     document.getElementById('topupScanInput').focus();
-    topupTapAnggota = null;
+}
+
+function showTopupQRScanner() {
+    document.getElementById('topupStep1').style.display = 'none';
+    document.getElementById('topupQRScanner').style.display = 'block';
+    document.getElementById('topupQRInput').value = '';
+    startTopupQRScanner();
+}
+
+// QR Scanner
+async function startTopupQRScanner() {
+    const video = document.getElementById('topupQRVideo');
+    const loading = document.getElementById('topupQRLoading');
+    const error = document.getElementById('topupQRError');
+    
+    loading.style.display = 'flex';
+    error.style.display = 'none';
+    
+    try {
+        topupQRStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        video.srcObject = topupQRStream;
+        await video.play();
+        loading.style.display = 'none';
+        scanTopupQRCode();
+    } catch (err) {
+        console.error('Camera error:', err);
+        loading.style.display = 'none';
+        error.style.display = 'flex';
+    }
+}
+
+function stopTopupQRScanner() {
+    if (topupQRAnimationFrame) {
+        cancelAnimationFrame(topupQRAnimationFrame);
+        topupQRAnimationFrame = null;
+    }
+    if (topupQRStream) {
+        topupQRStream.getTracks().forEach(track => track.stop());
+        topupQRStream = null;
+    }
+}
+
+function scanTopupQRCode() {
+    const video = document.getElementById('topupQRVideo');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+            
+            if (code) {
+                stopTopupQRScanner();
+                topupCurrentScanData = code.data;
+                processTopupScanData(code.data, 'QR');
+                return;
+            }
+        }
+        topupQRAnimationFrame = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+function processTopupQRInput() {
+    const val = document.getElementById('topupQRInput').value.trim();
+    if (val) {
+        stopTopupQRScanner();
+        topupCurrentScanData = val;
+        processTopupScanData(val, 'QR');
+    }
 }
 
 function setTopupNominal(val) {
@@ -240,20 +608,26 @@ function setTopupNominal(val) {
 function processTopupScan() {
     const scanData = document.getElementById('topupScanInput').value.trim();
     if (!scanData) return;
-    
+    topupCurrentScanData = scanData;
+    processTopupScanData(scanData, 'NFC');
+}
+
+function processTopupScanData(scanData, metode) {
     fetch('/api/topup/tap', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
         },
-        body: JSON.stringify({ scan_data: scanData, metode: 'NFC' })
+        body: JSON.stringify({ scan_data: scanData, metode: metode })
     })
     .then(r => r.json())
     .then(data => {
         if (data.success && data.data.ready_to_topup) {
             topupTapAnggota = data.data.anggota;
             document.getElementById('topupStep1').style.display = 'none';
+            document.getElementById('topupNFCInput').style.display = 'none';
+            document.getElementById('topupQRScanner').style.display = 'none';
             document.getElementById('topupStep2').style.display = 'block';
             document.getElementById('topupMemberNama').textContent = topupTapAnggota.nama;
             document.getElementById('topupMemberPangkat').textContent = topupTapAnggota.pangkat + ' — ' + (topupTapAnggota.jabatan || '');
@@ -269,14 +643,12 @@ function processTopupScan() {
 
 // Confirm topup
 function confirmTopupTap() {
-    if (!topupTapAnggota) return;
+    if (!topupTapAnggota || !topupCurrentScanData) return;
     const nominal = parseInt(document.getElementById('topupNominal').value) || 0;
     if (nominal < 10000) {
         alert('Nominal minimal Rp 10.000');
         return;
     }
-    
-    const scanData = document.getElementById('topupScanInput').value.trim();
     
     fetch('/api/topup/tap', {
         method: 'POST',
@@ -284,7 +656,7 @@ function confirmTopupTap() {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
         },
-        body: JSON.stringify({ scan_data: scanData, nominal: nominal, metode: 'NFC' })
+        body: JSON.stringify({ scan_data: topupCurrentScanData, nominal: nominal, metode: 'NFC' })
     })
     .then(r => r.json())
     .then(data => {
@@ -301,9 +673,17 @@ function confirmTopupTap() {
     .catch(err => alert('Error: ' + err.message));
 }
 
-// Enter key handler
+// Enter key handlers
 document.getElementById('topupScanInput').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') processTopupScan();
+});
+document.getElementById('topupQRInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') processTopupQRInput();
+});
+
+// Close with Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTopupTapModal();
 });
 </script>
 {% endblock %}

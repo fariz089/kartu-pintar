@@ -10,7 +10,7 @@
 
 <!-- Scan Options -->
 <div class="scan-options">
-    <div class="scan-card" onclick="simulateNFCScan()">
+    <div class="scan-card" onclick="showNFCModal()">
         <div class="scan-card-icon">
             <i class="bi bi-nfc"></i>
         </div>
@@ -21,7 +21,7 @@
         </button>
     </div>
 
-    <div class="scan-card" onclick="simulateQRScan()">
+    <div class="scan-card" onclick="showQRModal()">
         <div class="scan-card-icon">
             <i class="bi bi-qr-code-scan"></i>
         </div>
@@ -70,19 +70,595 @@
         </div>
     </div>
 </div>
+
+<!-- NFC Modal -->
+<div id="nfcModal" class="scan-modal">
+    <div class="scan-modal-content">
+        <div class="scan-modal-header">
+            <h3><i class="bi bi-nfc"></i> Scan NFC</h3>
+            <button class="scan-modal-close" onclick="closeNFCModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="scan-modal-body">
+            <div class="nfc-animation">
+                <div class="nfc-pulse"></div>
+                <i class="bi bi-credit-card-fill"></i>
+            </div>
+            <h4>Tempelkan Kartu ke NFC Reader</h4>
+            <p>Pastikan NFC reader sudah terhubung ke komputer</p>
+            
+            <div class="scan-divider">
+                <span>atau input manual</span>
+            </div>
+            
+            <div class="scan-input-group">
+                <input type="text" id="nfcInput" class="form-input" placeholder="Masukkan NFC UID..." autocomplete="off">
+                <button class="btn btn-primary" onclick="processNFCScan()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <p class="scan-hint"><i class="bi bi-lightbulb"></i> NFC Reader akan otomatis input ke kolom ini saat kartu di-tap</p>
+        </div>
+    </div>
+</div>
+
+<!-- QR Modal -->
+<div id="qrModal" class="scan-modal">
+    <div class="scan-modal-content scan-modal-lg">
+        <div class="scan-modal-header">
+            <h3><i class="bi bi-qr-code-scan"></i> Scan QR Code</h3>
+            <button class="scan-modal-close" onclick="closeQRModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="scan-modal-body">
+            <div id="qrScannerContainer">
+                <div id="qrLoading" class="qr-loading">
+                    <div class="spinner"></div>
+                    <p>Memuat kamera...</p>
+                </div>
+                <video id="qrVideo" playsinline></video>
+                <div class="qr-overlay">
+                    <div class="qr-frame"></div>
+                </div>
+                <div id="qrError" class="qr-error" style="display: none;">
+                    <i class="bi bi-camera-video-off"></i>
+                    <p>Tidak dapat mengakses kamera</p>
+                    <button class="btn btn-secondary btn-sm" onclick="startQRScanner()">Coba Lagi</button>
+                </div>
+            </div>
+            
+            <div class="scan-divider">
+                <span>atau input manual</span>
+            </div>
+            
+            <div class="scan-input-group">
+                <input type="text" id="qrInput" class="form-input" placeholder="Masukkan QR Data / ID Kartu..." autocomplete="off">
+                <button class="btn btn-primary" onclick="processQRScan()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Result Modal -->
+<div id="resultModal" class="scan-modal">
+    <div class="scan-modal-content">
+        <div class="scan-modal-header">
+            <h3><i class="bi bi-person-badge"></i> Hasil Scan</h3>
+            <button class="scan-modal-close" onclick="closeResultModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="scan-modal-body" id="resultContent">
+            <!-- Filled by JS -->
+        </div>
+    </div>
+</div>
+
+<style>
+.scan-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.scan-modal.active {
+    display: flex;
+}
+.scan-modal-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+.scan-modal-lg {
+    max-width: 500px;
+}
+.scan-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.scan-modal-header h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--gold-400);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.scan-modal-close {
+    background: var(--bg-secondary);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.scan-modal-close:hover {
+    background: var(--red-500);
+    color: white;
+}
+.scan-modal-body {
+    padding: 24px 20px;
+    text-align: center;
+}
+.nfc-animation {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 20px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nfc-animation i {
+    font-size: 48px;
+    color: var(--gold-400);
+    z-index: 1;
+}
+.nfc-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--gold-400);
+    opacity: 0.2;
+    animation: nfcPulse 2s ease-out infinite;
+}
+@keyframes nfcPulse {
+    0% { transform: scale(0.8); opacity: 0.4; }
+    100% { transform: scale(1.4); opacity: 0; }
+}
+.scan-modal-body h4 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+.scan-modal-body > p {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.scan-divider {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.scan-divider::before,
+.scan-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+.scan-divider span {
+    padding: 0 12px;
+}
+.scan-input-group {
+    display: flex;
+    gap: 8px;
+}
+.scan-input-group .form-input {
+    flex: 1;
+}
+.scan-hint {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.scan-hint i {
+    color: var(--gold-400);
+}
+
+/* QR Scanner */
+#qrScannerContainer {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+#qrVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.qr-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qr-frame {
+    width: 200px;
+    height: 200px;
+    border: 3px solid var(--gold-400);
+    border-radius: 16px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+.qr-loading, .qr-error {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+.qr-error i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--gold-400);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 12px;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Result */
+.result-success {
+    text-align: center;
+}
+.result-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--olive-600);
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--gold-400);
+}
+.result-avatar i {
+    font-size: 36px;
+    color: var(--gold-400);
+}
+.result-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.result-rank {
+    color: var(--gold-400);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+.result-info {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: left;
+}
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.result-row:last-child {
+    border-bottom: none;
+}
+.result-label {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.result-value {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+}
+.result-saldo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--gold-400);
+}
+.result-error {
+    padding: 40px 20px;
+    text-align: center;
+}
+.result-error i {
+    font-size: 48px;
+    color: var(--red-400);
+    margin-bottom: 16px;
+}
+.result-error h4 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+.result-error p {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/@aspect-build/aspect-js@0.2.0/dist/aspect.min.js"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
+let qrStream = null;
+let qrAnimationFrame = null;
+
+// Manual search
 function manualScan() {
     const val = document.getElementById('manualSearch').value.trim();
     if (val) {
-        window.location.href = `/scan/result/${val}`;
+        searchAnggota(val, 'Manual');
     }
 }
 
 document.getElementById('manualSearch').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') manualScan();
+});
+
+// NFC Modal
+function showNFCModal() {
+    document.getElementById('nfcModal').classList.add('active');
+    document.getElementById('nfcInput').value = '';
+    document.getElementById('nfcInput').focus();
+}
+
+function closeNFCModal() {
+    document.getElementById('nfcModal').classList.remove('active');
+}
+
+function processNFCScan() {
+    const val = document.getElementById('nfcInput').value.trim();
+    if (val) {
+        closeNFCModal();
+        searchAnggota(val, 'NFC');
+    }
+}
+
+document.getElementById('nfcInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') processNFCScan();
+});
+
+// QR Modal
+function showQRModal() {
+    document.getElementById('qrModal').classList.add('active');
+    document.getElementById('qrInput').value = '';
+    startQRScanner();
+}
+
+function closeQRModal() {
+    document.getElementById('qrModal').classList.remove('active');
+    stopQRScanner();
+}
+
+function processQRScan() {
+    const val = document.getElementById('qrInput').value.trim();
+    if (val) {
+        closeQRModal();
+        searchAnggota(val, 'QR');
+    }
+}
+
+document.getElementById('qrInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') processQRScan();
+});
+
+// QR Scanner using jsQR
+async function startQRScanner() {
+    const video = document.getElementById('qrVideo');
+    const loading = document.getElementById('qrLoading');
+    const error = document.getElementById('qrError');
+    
+    loading.style.display = 'flex';
+    error.style.display = 'none';
+    
+    try {
+        qrStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        });
+        video.srcObject = qrStream;
+        await video.play();
+        loading.style.display = 'none';
+        scanQRCode();
+    } catch (err) {
+        console.error('Camera error:', err);
+        loading.style.display = 'none';
+        error.style.display = 'flex';
+    }
+}
+
+function stopQRScanner() {
+    if (qrAnimationFrame) {
+        cancelAnimationFrame(qrAnimationFrame);
+        qrAnimationFrame = null;
+    }
+    if (qrStream) {
+        qrStream.getTracks().forEach(track => track.stop());
+        qrStream = null;
+    }
+}
+
+function scanQRCode() {
+    const video = document.getElementById('qrVideo');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+            
+            if (code) {
+                // QR Code found!
+                closeQRModal();
+                searchAnggota(code.data, 'QR');
+                return;
+            }
+        }
+        qrAnimationFrame = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+// Search anggota
+function searchAnggota(scanData, method) {
+    document.getElementById('resultModal').classList.add('active');
+    document.getElementById('resultContent').innerHTML = `
+        <div style="padding: 40px; text-align: center;">
+            <div class="spinner" style="margin: 0 auto 16px;"></div>
+            <p style="color: var(--text-muted);">Mencari data...</p>
+        </div>
+    `;
+    
+    fetch('/api/scan/search', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
+        },
+        body: JSON.stringify({ scan_data: scanData, metode: method })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showResult(data.data);
+        } else {
+            showError(data.message || 'Data tidak ditemukan');
+        }
+    })
+    .catch(err => {
+        showError('Terjadi kesalahan: ' + err.message);
+    });
+}
+
+function showResult(anggota) {
+    const statusClass = anggota.status_kartu === 'Aktif' ? 'aktif' : 'nonaktif';
+    document.getElementById('resultContent').innerHTML = `
+        <div class="result-success">
+            <div class="result-avatar">
+                <i class="bi bi-person-fill"></i>
+            </div>
+            <div class="result-name">${anggota.nama}</div>
+            <div class="result-rank">${anggota.pangkat} — ${anggota.jabatan || '-'}</div>
+            
+            <div class="result-info">
+                <div class="result-row">
+                    <span class="result-label">NRP</span>
+                    <span class="result-value">${anggota.nrp}</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Satuan</span>
+                    <span class="result-value">${anggota.satuan || '-'}</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Jurusan</span>
+                    <span class="result-value">${anggota.jurusan || '-'}</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Status Kartu</span>
+                    <span class="result-value"><span class="badge badge-${statusClass}">${anggota.status_kartu}</span></span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Saldo</span>
+                    <span class="result-saldo">Rp ${anggota.saldo?.toLocaleString('id-ID') || '0'}</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" onclick="closeResultModal()" style="flex: 1;">
+                    <i class="bi bi-x"></i> Tutup
+                </button>
+                <a href="/scan/result/${anggota.nfc_uid || anggota.qr_data || anggota.id}" class="btn btn-primary" style="flex: 1;">
+                    <i class="bi bi-eye"></i> Detail Lengkap
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+function showError(message) {
+    document.getElementById('resultContent').innerHTML = `
+        <div class="result-error">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <h4>Tidak Ditemukan</h4>
+            <p>${message}</p>
+            <button class="btn btn-secondary mt-2" onclick="closeResultModal()">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </button>
+        </div>
+    `;
+}
+
+function closeResultModal() {
+    document.getElementById('resultModal').classList.remove('active');
+}
+
+// Close modals with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeNFCModal();
+        closeQRModal();
+        closeResultModal();
+    }
 });
 </script>
 {% endblock %}

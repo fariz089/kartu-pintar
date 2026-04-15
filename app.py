@@ -1016,6 +1016,42 @@ def register_api_routes(app):
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'QR Code tidak valid'}), 404
 
+    @app.route('/api/scan/search', methods=['POST'])
+    @login_required
+    def api_scan_search():
+        """Search anggota by scan data (NFC UID, QR Data, or Kartu ID) - for web scanner"""
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+        
+        scan_data = data.get('scan_data', '').strip()
+        metode = data.get('metode', 'Manual')
+        
+        if not scan_data:
+            return jsonify({'success': False, 'message': 'scan_data required'}), 400
+        
+        a = find_anggota_by_scan(scan_data, metode)
+        if a:
+            # Log the scan
+            a.lokasi_waktu = datetime.now()
+            db.session.add(LokasiHistory(
+                anggota_id=a.id,
+                latitude=a.lokasi_lat or -6.8927,
+                longitude=a.lokasi_lng or 107.6100,
+                lokasi_nama=f'{metode} Scan (Web)',
+                sumber=metode,
+                scanned_by_user_id=session.get('user_id'),
+            ))
+            db.session.commit()
+            
+            # Return appropriate data based on user role
+            role = session.get('role', 'user')
+            if role == 'user':
+                return jsonify({'success': True, 'data': a.to_identitas_dict()})
+            return jsonify({'success': True, 'data': a.to_dict()})
+        
+        return jsonify({'success': False, 'message': 'Data tidak ditemukan. Pastikan NFC UID atau QR Code valid.'}), 404
+
     @app.route('/api/pembayaran', methods=['POST'])
     @jwt_required
     def api_pembayaran():
