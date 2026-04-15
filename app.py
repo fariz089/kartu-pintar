@@ -1915,9 +1915,10 @@ def register_error_handlers(app):
 # RUN
 # ============================================================
 
-if __name__ == '__main__':
-    app = create_app()
+# Create app instance for Gunicorn/WSGI servers
+app = create_app()
 
+if __name__ == '__main__':
     # --- Aktifkan Google Find Hub Integration ---
     try:
         from findmy_service import FindMyLocationService, register_findmy_routes
