@@ -7,9 +7,13 @@ SETUP:
 2. git clone https://github.com/leonboe1/GoogleFindMyTools.git findmy_tools
 3. pip install -r findmy_tools/requirements.txt
 4. python findmy_tools/main.py   (login Google pertama kali, butuh Chrome)
-5. Catat canonic_device_id MiLi Card kamu
-6. Set FINDMY_TRACKER_MAP di config.py
-7. Aktifkan di app.py (lihat bawah file ini)
+5. Tambah tracker di Admin Panel → Monitoring → FindMy Trackers
+6. Aktifkan di app.py (lihat bawah file ini)
+
+PERUBAHAN:
+- Tracker mapping sekarang baca dari database (tabel findmy_tracker)
+- Tidak perlu hardcode FINDMY_TRACKER_MAP di config.py lagi
+- Kelola tracker via Admin Panel
 
 CATATAN:
 - Hanya bisa jalan di server/komputer (butuh Chrome untuk auth pertama kali)
@@ -38,17 +42,25 @@ logger.addHandler(handler)
 
 class FindMyLocationService:
 
-    def __init__(self, app=None, tracker_map=None):
+    def __init__(self, app=None):
         self.app = app
-        self.tracker_map = tracker_map or {}
         self._running = False
         self._thread = None
         self._tools = None
 
     def init_app(self, app):
         self.app = app
-        self.tracker_map = app.config.get('FINDMY_TRACKER_MAP', {})
-        logger.info(f"FindMy initialized with {len(self.tracker_map)} tracker mappings")
+        logger.info("FindMy service initialized (reading trackers from database)")
+
+    def _get_tracker_map(self):
+        """Get tracker mapping from database: { canonical_id: kartu_id }"""
+        if not self.app:
+            return {}
+        
+        with self.app.app_context():
+            from models import FindMyTracker
+            trackers = FindMyTracker.query.filter_by(is_active=True).all()
+            return {t.canonical_id: t.anggota.kartu_id for t in trackers if t.anggota}
 
     def _load_tools(self):
         """Lazy import GoogleFindMyTools"""
@@ -104,6 +116,9 @@ class FindMyLocationService:
         tools = self._load_tools()
         if not tools:
             return []
+        
+        tracker_map = self._get_tracker_map()
+        
         try:
             result_hex = tools['request_device_list']()
             device_list = tools['parse_device_list_protobuf'](result_hex)
@@ -113,7 +128,7 @@ class FindMyLocationService:
             return [{
                 'device_name': name,
                 'canonic_id': cid,
-                'kartu_id': self.tracker_map.get(cid, 'UNMAPPED'),
+                'kartu_id': tracker_map.get(cid, 'UNMAPPED'),
             } for name, cid in canonic_ids]
         except Exception as e:
             logger.error(f"Error listing trackers: {e}")
@@ -205,11 +220,16 @@ class FindMyLocationService:
 
     def update_all_locations(self):
         """Fetch lokasi semua tracker, update database"""
-        if not self.app or not self.tracker_map:
+        if not self.app:
+            return
+        
+        tracker_map = self._get_tracker_map()
+        if not tracker_map:
+            logger.info("No trackers configured in database")
             return
 
         with self.app.app_context():
-            from models import db, Anggota, LokasiHistory
+            from models import db, Anggota, LokasiHistory, FindMyTracker
 
             for tracker in self.list_trackers():
                 if tracker['kartu_id'] == 'UNMAPPED':
@@ -225,11 +245,21 @@ class FindMyLocationService:
                     continue
 
                 latest = max(geo_locs, key=lambda l: l['timestamp'])
+                
+                # Update Anggota lokasi terakhir
                 anggota.lokasi_lat = latest['latitude']
                 anggota.lokasi_lng = latest['longitude']
                 anggota.lokasi_nama = f"GPS via Find Hub (±{latest.get('accuracy', '?')}m)"
                 anggota.lokasi_waktu = latest['timestamp']
 
+                # Update FindMyTracker record
+                findmy_tracker = FindMyTracker.query.filter_by(canonical_id=tracker['canonic_id']).first()
+                if findmy_tracker:
+                    findmy_tracker.last_seen = latest['timestamp']
+                    findmy_tracker.last_latitude = latest['latitude']
+                    findmy_tracker.last_longitude = latest['longitude']
+
+                # Add to history
                 for loc in geo_locs:
                     db.session.add(LokasiHistory(
                         anggota_id=anggota.id,
@@ -266,26 +296,60 @@ class FindMyLocationService:
 
 def register_findmy_routes(app, findmy_service):
     """API routes untuk FindMy integration"""
-    from flask import jsonify
+    from flask import jsonify, request
+    from functools import wraps
+
+    def admin_required(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            from flask import session
+            if not session.get('user_id'):
+                return jsonify({'success': False, 'message': 'Login required'}), 401
+            from models import User
+            user = User.query.get(session['user_id'])
+            if not user or user.role != 'admin':
+                return jsonify({'success': False, 'message': 'Admin only'}), 403
+            return f(*args, **kwargs)
+        return decorated
 
     @app.route('/api/findmy/trackers', methods=['GET'])
+    @admin_required
     def api_findmy_trackers():
+        """Get tracker mapping from database"""
+        try:
+            from models import FindMyTracker
+            trackers = FindMyTracker.query.filter_by(is_active=True).all()
+            return jsonify({
+                'success': True, 
+                'data': {t.canonical_id: t.anggota.kartu_id for t in trackers if t.anggota}
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/findmy/google-trackers', methods=['GET'])
+    @admin_required
+    def api_findmy_google_trackers():
+        """List all trackers from Google account"""
         try:
             return jsonify({'success': True, 'data': findmy_service.list_trackers()})
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}), 500
 
     @app.route('/api/findmy/locate/<kartu_id>', methods=['POST'])
+    @admin_required
     def api_findmy_locate(kartu_id):
-        canonic_id = None
-        for cid, kid in findmy_service.tracker_map.items():
-            if kid == kartu_id:
-                canonic_id = cid
-                break
-        if not canonic_id:
+        """Request location for specific card"""
+        from models import FindMyTracker, Anggota
+        
+        anggota = Anggota.query.filter_by(kartu_id=kartu_id).first()
+        if not anggota:
+            return jsonify({'success': False, 'message': f'Anggota {kartu_id} not found'}), 404
+        
+        tracker = FindMyTracker.query.filter_by(anggota_id=anggota.id, is_active=True).first()
+        if not tracker:
             return jsonify({'success': False, 'message': f'No tracker mapped to {kartu_id}'}), 404
 
-        locs = findmy_service.get_location(canonic_id, kartu_id)
+        locs = findmy_service.get_location(tracker.canonical_id, kartu_id)
         return jsonify({'success': True, 'data': [{
             'latitude': l['latitude'], 'longitude': l['longitude'],
             'timestamp': l['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
@@ -293,12 +357,45 @@ def register_findmy_routes(app, findmy_service):
         } for l in locs if l.get('latitude')]})
 
     @app.route('/api/findmy/update-all', methods=['POST'])
+    @admin_required
     def api_findmy_update_all():
+        """Update locations for all trackers"""
         try:
             findmy_service.update_all_locations()
             return jsonify({'success': True, 'message': 'Updated'})
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}), 500
+
+    @app.route('/api/findmy/update-location', methods=['POST'])
+    @admin_required
+    def api_findmy_update_location():
+        """Update location for a tracker (called by sync script)"""
+        from models import db, FindMyTracker, Anggota
+        
+        data = request.get_json()
+        canonical_id = data.get('canonical_id')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        address = data.get('address')
+        
+        tracker = FindMyTracker.query.filter_by(canonical_id=canonical_id).first()
+        if not tracker:
+            return jsonify({'success': False, 'message': 'Tracker not found'}), 404
+        
+        tracker.last_seen = datetime.now()
+        tracker.last_latitude = latitude
+        tracker.last_longitude = longitude
+        tracker.last_address = address
+        
+        # Also update anggota
+        if tracker.anggota:
+            tracker.anggota.lokasi_lat = latitude
+            tracker.anggota.lokasi_lng = longitude
+            tracker.anggota.lokasi_nama = address or 'GPS via Find Hub'
+            tracker.anggota.lokasi_waktu = datetime.now()
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Updated {tracker.anggota.kartu_id if tracker.anggota else canonical_id}'})
 
 
 # ============================================================
@@ -313,8 +410,5 @@ def register_findmy_routes(app, findmy_service):
 # register_findmy_routes(app, findmy)
 # # findmy.start_worker(interval=60)  # Uncomment untuk auto-update tiap 1 menit
 #
-# Dan di config.py tambahkan:
-#
-# FINDMY_TRACKER_MAP = {
-#     'canonic_device_id_dari_main_py': 'KP-2025-001',
-# }
+# TIDAK PERLU LAGI menambahkan FINDMY_TRACKER_MAP di config.py
+# Kelola tracker via Admin Panel → Monitoring → FindMy Trackers

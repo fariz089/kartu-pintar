@@ -45,23 +45,13 @@ class Config:
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
 
     # ============================================================
-    # Google Find Hub - Tracker Mapping
+    # Google Find Hub Settings
     # ============================================================
-    # Format: { 'canonic_device_id': 'kartu_id_anggota' }
+    # Tracker mapping sekarang dikelola via Admin Panel
+    # Buka: Monitoring → FindMy Trackers
     #
-    # canonic_device_id  = ID dari GoogleFindMyTools (lihat output main.py)
-    # kartu_id_anggota   = kartu_id di tabel anggota (misal 'KP-2025-001')
-    #
-    # Tracker yang terdeteksi dari akun Google kamu:
-    #   1. Google Pixel 6 Pro: 66d9ba4b-0000-22a0-a17a-582429ccdab0
-    #   2. Micard Pro:         69bf1cb3-0000-202d-b6b0-14223bb2d81a
-    #
-    # Sesuaikan mapping di bawah dengan kartu_id anggota yang benar:
-    FINDMY_TRACKER_MAP = {
-        '69bf1cb3-0000-202d-b6b0-14223bb2d81a': 'KP-2025-001',  # Micard Pro → Anggota pertama
-        # Tambahkan tracker lain di sini:
-        # 'canonic_id_tracker_lain': 'KP-2025-002',
-    }
+    # TIDAK PERLU LAGI hardcode FINDMY_TRACKER_MAP di sini!
+    # ============================================================
 
     # Interval update lokasi otomatis (dalam detik, default 5 menit)
     FINDMY_UPDATE_INTERVAL = int(os.environ.get('FINDMY_UPDATE_INTERVAL', 300))

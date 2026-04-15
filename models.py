@@ -12,7 +12,7 @@ db = SQLAlchemy()
 
 # Export all models at module level
 __all__ = ['db', 'User', 'Anggota', 'Transaksi', 'TransaksiItem', 
-           'LokasiHistory', 'MenuKantin', 'KategoriProduk', 'Produk']
+           'LokasiHistory', 'MenuKantin', 'KategoriProduk', 'Produk', 'FindMyTracker']
 
 
 def generate_id(prefix='KP'):
@@ -334,4 +334,40 @@ class MenuKantin(db.Model):
             'kategori': self.kategori,
             'harga': self.harga,
             'is_available': self.is_available,
+        }
+
+
+class FindMyTracker(db.Model):
+    """Google Find Hub Tracker mapping to Anggota"""
+    __tablename__ = 'findmy_tracker'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    canonical_id = db.Column(db.String(100), unique=True, nullable=False, index=True)  # Google Find Hub canonic_device_id
+    anggota_id = db.Column(db.Integer, db.ForeignKey('anggota.id'), nullable=False, index=True)
+    nama_tracker = db.Column(db.String(100), nullable=True)  # Friendly name, e.g. "MiCard Pro - Budi"
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_seen = db.Column(db.DateTime, nullable=True)
+    last_latitude = db.Column(db.Float, nullable=True)
+    last_longitude = db.Column(db.Float, nullable=True)
+    last_address = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    # Relationship
+    anggota = db.relationship('Anggota', backref=db.backref('findmy_trackers', lazy='dynamic'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'canonical_id': self.canonical_id,
+            'anggota_id': self.anggota_id,
+            'anggota_nama': self.anggota.nama if self.anggota else None,
+            'anggota_kartu_id': self.anggota.kartu_id if self.anggota else None,
+            'nama_tracker': self.nama_tracker,
+            'is_active': self.is_active,
+            'last_seen': self.last_seen.strftime('%Y-%m-%d %H:%M:%S') if self.last_seen else None,
+            'last_latitude': self.last_latitude,
+            'last_longitude': self.last_longitude,
+            'last_address': self.last_address,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
         }

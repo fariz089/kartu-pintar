@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}FindMy Tracker Management{% endblock %}
+{% block page_title %}Google Find Hub - Tracker Management{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px;">Kelola mapping Google Find Hub Tracker ke Anggota untuk fitur pelacakan kartu</p>
+</div>
+
+<!-- Add New Tracker Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h2><i class="bi bi-plus-circle-fill" style="color: var(--gold-400);"></i> Tambah Tracker Baru</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('findmy_tracker_add') }}">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label">Canonical Device ID <span style="color: var(--red-400);">*</span></label>
+                    <input type="text" name="canonical_id" class="form-input" 
+                           placeholder="e.g. 69bf1cb3-0000-202d-b6b0-14223bb2d81a" required>
+                    <small style="color: var(--text-muted); font-size: 11px;">
+                        ID dari GoogleFindMyTools (findmy_tools/main.py)
+                    </small>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label">Anggota <span style="color: var(--red-400);">*</span></label>
+                    <select name="anggota_id" class="form-select" required>
+                        <option value="">— Pilih Anggota —</option>
+                        {% for a in anggota_list %}
+                        <option value="{{ a.id }}">{{ a.nama }} — {{ a.pangkat }} ({{ a.kartu_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="form-label">Nama Tracker</label>
+                    <input type="text" name="nama_tracker" class="form-input" 
+                           placeholder="e.g. MiLi Card - Budi">
+                </div>
+                <button type="submit" class="btn btn-primary" style="height: 44px;">
+                    <i class="bi bi-plus-lg"></i> Tambah
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Info Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div style="display: flex; gap: 16px; align-items: flex-start;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(74, 122, 140, 0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="bi bi-info-circle-fill" style="color: #6bb0c4; font-size: 18px;"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; color: var(--text-primary); margin-bottom: 8px;">Cara Mendapatkan Canonical Device ID</h4>
+                <ol style="font-size: 13px; color: var(--text-muted); line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <li>Pastikan <code>findmy_tools/</code> sudah di-clone dari <a href="https://github.com/leonboe1/GoogleFindMyTools" target="_blank" style="color: var(--gold-400);">GoogleFindMyTools</a></li>
+                    <li>Jalankan <code>python findmy_tools/main.py</code> (login Google pertama kali)</li>
+                    <li>Pilih perangkat tracker (MiLi Card, Chipolo, dll) dari daftar</li>
+                    <li>Copy nilai <code>canonic_device_id</code> yang ditampilkan</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trackers List -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-broadcast-pin" style="color: var(--gold-400);"></i> Daftar Tracker ({{ trackers|length }})</h2>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if trackers %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Nama Tracker</th>
+                        <th>Canonical ID</th>
+                        <th>Anggota</th>
+                        <th>Lokasi Terakhir</th>
+                        <th>Terakhir Update</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in trackers %}
+                    <tr>
+                        <td>
+                            {% if t.is_active %}
+                            <span class="badge badge-aktif">Aktif</span>
+                            {% else %}
+                            <span class="badge badge-nonaktif">Nonaktif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong style="color: var(--text-primary);">{{ t.nama_tracker or '-' }}</strong>
+                        </td>
+                        <td>
+                            <code style="font-size: 11px; background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px;">
+                                {{ t.canonical_id[:20] }}...
+                            </code>
+                        </td>
+                        <td>
+                            <div style="font-weight: 500; color: var(--text-primary);">{{ t.anggota_nama }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">{{ t.anggota_kartu_id }}</div>
+                        </td>
+                        <td>
+                            {% if t.last_latitude and t.last_longitude %}
+                            <div style="font-size: 12px; color: var(--text-muted);">
+                                <i class="bi bi-geo-alt"></i> {{ "%.4f"|format(t.last_latitude) }}, {{ "%.4f"|format(t.last_longitude) }}
+                            </div>
+                            {% if t.last_address %}
+                            <div style="font-size: 11px; color: var(--text-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ t.last_address }}
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 12px;">Belum ada data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if t.last_seen %}
+                            <span style="font-size: 12px; color: var(--text-muted);">{{ t.last_seen }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 12px;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="showEditModal({{ t|tojson|e }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" style="color: var(--red-400);" 
+                                        onclick="confirmDelete({{ t.id }}, '{{ t.nama_tracker }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 60px 20px; text-align: center;">
+            <i class="bi bi-broadcast-pin" style="font-size: 48px; color: var(--text-muted); opacity: 0.3;"></i>
+            <p style="color: var(--text-muted); margin-top: 16px;">Belum ada tracker yang terdaftar</p>
+            <p style="color: var(--text-muted); font-size: 13px;">Tambahkan tracker di atas untuk memulai pelacakan kartu via FindMy</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="tracker-modal">
+    <div class="tracker-modal-content">
+        <div class="tracker-modal-header">
+            <h3><i class="bi bi-pencil"></i> Edit Tracker</h3>
+            <button class="tracker-modal-close" onclick="closeEditModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <form id="editForm" method="POST">
+            <div class="tracker-modal-body">
+                <div class="form-group">
+                    <label class="form-label">Canonical ID <span style="color: var(--red-400);">*</span></label>
+                    <input type="text" name="canonical_id" id="edit_canonical_id" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Anggota <span style="color: var(--red-400);">*</span></label>
+                    <select name="anggota_id" id="edit_anggota_id" class="form-select" required>
+                        <option value="">— Pilih Anggota —</option>
+                        {% for a in anggota_list %}
+                        <option value="{{ a.id }}">{{ a.nama }} — {{ a.pangkat }} ({{ a.kartu_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nama Tracker</label>
+                    <input type="text" name="nama_tracker" id="edit_nama_tracker" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" name="is_active" id="edit_is_active" style="width: 18px; height: 18px;">
+                        <span class="form-label" style="margin: 0;">Tracker Aktif</span>
+                    </label>
+                </div>
+            </div>
+            <div class="tracker-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> Simpan Perubahan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Form (hidden) -->
+<form id="deleteForm" method="POST" style="display: none;">
+</form>
+
+<style>
+.tracker-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.tracker-modal.active {
+    display: flex;
+}
+.tracker-modal-content {
+    background: var(--bg-card);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+.tracker-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.tracker-modal-header h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--gold-400);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tracker-modal-close {
+    background: var(--bg-secondary);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tracker-modal-close:hover {
+    background: var(--red-500);
+    color: white;
+}
+.tracker-modal-body {
+    padding: 20px;
+}
+.tracker-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showEditModal(tracker) {
+    document.getElementById('editForm').action = '/findmy-trackers/edit/' + tracker.id;
+    document.getElementById('edit_canonical_id').value = tracker.canonical_id;
+    document.getElementById('edit_anggota_id').value = tracker.anggota_id;
+    document.getElementById('edit_nama_tracker').value = tracker.nama_tracker || '';
+    document.getElementById('edit_is_active').checked = tracker.is_active;
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+}
+
+function confirmDelete(trackerId, trackerName) {
+    if (confirm('Hapus tracker "' + trackerName + '"?\n\nData lokasi tracker akan dihapus permanen.')) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/findmy-trackers/delete/' + trackerId;
+        form.submit();
+    }
+}
+
+// Close modal with Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEditModal();
+});
+</script>
+{% endblock %}

@@ -12,7 +12,7 @@ import uuid
 import jwt as pyjwt
 
 from config import config_map
-from models import db, User, Anggota, Transaksi, TransaksiItem, LokasiHistory, MenuKantin, KategoriProduk, Produk
+from models import db, User, Anggota, Transaksi, TransaksiItem, LokasiHistory, MenuKantin, KategoriProduk, Produk, FindMyTracker
 
 
 def create_app(config_name=None):
@@ -629,6 +629,156 @@ def register_routes(app):
         logs = LokasiHistory.query.order_by(LokasiHistory.waktu.desc()).limit(100).all()
         scan_data = [l.to_dict() for l in logs]
         return render_template('admin/scan_log.html', scan_data=scan_data)
+
+    # --- FINDMY TRACKER MANAGEMENT (Admin only) ---
+
+    @app.route('/findmy-trackers')
+    @admin_required
+    def findmy_tracker_list():
+        trackers = FindMyTracker.query.order_by(FindMyTracker.created_at.desc()).all()
+        anggota_list = Anggota.query.filter_by(status_kartu='Aktif').order_by(Anggota.nama).all()
+        return render_template('admin/findmy_trackers.html', 
+                               trackers=[t.to_dict() for t in trackers],
+                               anggota_list=[{'id': a.id, 'nama': a.nama, 'kartu_id': a.kartu_id, 'pangkat': a.pangkat} for a in anggota_list])
+
+    @app.route('/findmy-trackers/add', methods=['POST'])
+    @admin_required
+    def findmy_tracker_add():
+        canonical_id = request.form.get('canonical_id', '').strip()
+        anggota_id = request.form.get('anggota_id', type=int)
+        nama_tracker = request.form.get('nama_tracker', '').strip()
+
+        if not canonical_id or not anggota_id:
+            flash('Canonical ID dan Anggota wajib diisi!', 'danger')
+            return redirect(url_for('findmy_tracker_list'))
+
+        # Check if canonical_id already exists
+        existing = FindMyTracker.query.filter_by(canonical_id=canonical_id).first()
+        if existing:
+            flash(f'Tracker dengan Canonical ID tersebut sudah terdaftar untuk {existing.anggota.nama}!', 'danger')
+            return redirect(url_for('findmy_tracker_list'))
+
+        anggota = Anggota.query.get(anggota_id)
+        if not anggota:
+            flash('Anggota tidak ditemukan!', 'danger')
+            return redirect(url_for('findmy_tracker_list'))
+
+        tracker = FindMyTracker(
+            canonical_id=canonical_id,
+            anggota_id=anggota_id,
+            nama_tracker=nama_tracker or f'Tracker - {anggota.nama}',
+            is_active=True
+        )
+        db.session.add(tracker)
+        db.session.commit()
+
+        flash(f'Tracker berhasil ditambahkan untuk {anggota.nama}!', 'success')
+        return redirect(url_for('findmy_tracker_list'))
+
+    @app.route('/findmy-trackers/edit/<int:tracker_id>', methods=['POST'])
+    @admin_required
+    def findmy_tracker_edit(tracker_id):
+        tracker = FindMyTracker.query.get_or_404(tracker_id)
+        
+        canonical_id = request.form.get('canonical_id', '').strip()
+        anggota_id = request.form.get('anggota_id', type=int)
+        nama_tracker = request.form.get('nama_tracker', '').strip()
+        is_active = request.form.get('is_active') == 'on'
+
+        if not canonical_id or not anggota_id:
+            flash('Canonical ID dan Anggota wajib diisi!', 'danger')
+            return redirect(url_for('findmy_tracker_list'))
+
+        # Check if canonical_id already exists (excluding current)
+        existing = FindMyTracker.query.filter(
+            FindMyTracker.canonical_id == canonical_id,
+            FindMyTracker.id != tracker_id
+        ).first()
+        if existing:
+            flash(f'Canonical ID tersebut sudah digunakan oleh tracker lain!', 'danger')
+            return redirect(url_for('findmy_tracker_list'))
+
+        tracker.canonical_id = canonical_id
+        tracker.anggota_id = anggota_id
+        tracker.nama_tracker = nama_tracker
+        tracker.is_active = is_active
+        db.session.commit()
+
+        flash('Tracker berhasil diperbarui!', 'success')
+        return redirect(url_for('findmy_tracker_list'))
+
+    @app.route('/findmy-trackers/delete/<int:tracker_id>', methods=['POST'])
+    @admin_required
+    def findmy_tracker_delete(tracker_id):
+        tracker = FindMyTracker.query.get_or_404(tracker_id)
+        nama = tracker.nama_tracker
+        db.session.delete(tracker)
+        db.session.commit()
+        flash(f'Tracker "{nama}" berhasil dihapus!', 'success')
+        return redirect(url_for('findmy_tracker_list'))
+
+    @app.route('/api/findmy/trackers', methods=['GET'])
+    @admin_required
+    def api_findmy_trackers():
+        """API to get all trackers as mapping dict for FindMy integration"""
+        trackers = FindMyTracker.query.filter_by(is_active=True).all()
+        # Return as mapping: { canonical_id: kartu_id }
+        mapping = {t.canonical_id: t.anggota.kartu_id for t in trackers if t.anggota}
+        return jsonify({'success': True, 'data': mapping, 'count': len(mapping)})
+
+    @app.route('/api/findmy/update-location', methods=['POST'])
+    @admin_required
+    def api_findmy_update_location():
+        """API to update tracker location from FindMy tools"""
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body required'}), 400
+
+        canonical_id = data.get('canonical_id', '').strip()
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        address = data.get('address', '')
+
+        if not canonical_id:
+            return jsonify({'success': False, 'message': 'canonical_id required'}), 400
+
+        tracker = FindMyTracker.query.filter_by(canonical_id=canonical_id, is_active=True).first()
+        if not tracker:
+            return jsonify({'success': False, 'message': 'Tracker not found or inactive'}), 404
+
+        # Update tracker
+        tracker.last_seen = datetime.now()
+        if latitude is not None:
+            tracker.last_latitude = latitude
+        if longitude is not None:
+            tracker.last_longitude = longitude
+        if address:
+            tracker.last_address = address
+
+        # Also update the anggota location
+        if tracker.anggota and latitude is not None and longitude is not None:
+            tracker.anggota.lokasi_lat = latitude
+            tracker.anggota.lokasi_lng = longitude
+            tracker.anggota.lokasi_nama = address or 'FindMy Location'
+            tracker.anggota.lokasi_waktu = datetime.now()
+
+            # Log to history
+            db.session.add(LokasiHistory(
+                anggota_id=tracker.anggota.id,
+                latitude=latitude,
+                longitude=longitude,
+                lokasi_nama=address or 'FindMy Location',
+                sumber='FindMy',
+                scanned_by_user_id=session.get('user_id'),
+            ))
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Location updated for {tracker.anggota.nama if tracker.anggota else "unknown"}',
+            'data': tracker.to_dict()
+        })
 
     # --- TRANSAKSI (role-based) ---
 
@@ -1777,7 +1927,7 @@ if __name__ == '__main__':
         register_findmy_routes(app, findmy)
 
         # Auto-update lokasi setiap 5 menit
-        findmy.start_worker(interval=app.config.get('FINDMY_UPDATE_INTERVAL', 300))
+        findmy.start_worker(interval=app.config.get('FINDMY_UPDATE_INTERVAL', 60))
 
         print("[FindMy] Google Find Hub integration aktif!")
         print(f"[FindMy] Tracker mapping: {len(app.config.get('FINDMY_TRACKER_MAP', {}))} device(s)")
