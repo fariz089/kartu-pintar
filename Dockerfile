@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+ENV TZ=Asia/Jakarta
 # Install root Python deps + gunicorn
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
