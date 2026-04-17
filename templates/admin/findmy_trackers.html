@@ -8,6 +8,33 @@
     <p class="text-muted" style="font-size: 14px;">Kelola mapping Google Find Hub Tracker ke Anggota untuk fitur pelacakan kartu</p>
 </div>
 
+{# ============================================================ #}
+{# PATCH: Worker Status Card — pantau apakah background worker hidup #}
+{# ============================================================ #}
+<div class="card mb-3" id="workerStatusCard">
+    <div class="card-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <div id="workerStatusDot" style="width: 12px; height: 12px; border-radius: 50%; background: #666;"></div>
+                <div>
+                    <div style="font-weight: 600; color: var(--text-primary);" id="workerStatusLabel">
+                        <i class="bi bi-hourglass-split"></i> Memuat status worker...
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted);" id="workerStatusDetail">—</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="refreshWorkerStatus()">
+                    <i class="bi bi-arrow-clockwise"></i> Cek Status
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" id="btnForceUpdate" onclick="triggerUpdateAll()">
+                    <i class="bi bi-broadcast-pin"></i> Update Lokasi Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Add New Tracker Card -->
 <div class="card mb-3">
     <div class="card-header">
@@ -18,7 +45,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;">
                 <div class="form-group" style="margin: 0;">
                     <label class="form-label">Canonical Device ID <span style="color: var(--red-400);">*</span></label>
-                    <input type="text" name="canonical_id" class="form-input" 
+                    <input type="text" name="canonical_id" class="form-input"
                            placeholder="e.g. 69bf1cb3-0000-202d-b6b0-14223bb2d81a" required>
                     <small style="color: var(--text-muted); font-size: 11px;">
                         ID dari GoogleFindMyTools (findmy_tools/main.py)
@@ -35,7 +62,7 @@
                 </div>
                 <div class="form-group" style="margin: 0;">
                     <label class="form-label">Nama Tracker</label>
-                    <input type="text" name="nama_tracker" class="form-input" 
+                    <input type="text" name="nama_tracker" class="form-input"
                            placeholder="e.g. MiLi Card - Budi">
                 </div>
                 <button type="submit" class="btn btn-primary" style="height: 44px;">
@@ -134,7 +161,7 @@
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="showEditModal({{ t|tojson|e }})">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button type="button" class="btn btn-secondary btn-sm" style="color: var(--red-400);" 
+                                <button type="button" class="btn btn-secondary btn-sm" style="color: var(--red-400);"
                                         onclick="confirmDelete({{ t.id }}, '{{ t.nama_tracker }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -269,12 +296,101 @@
     border-top: 1px solid var(--border-color);
     background: var(--bg-secondary);
 }
+/* Pulse for running worker */
+@keyframes workerPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.worker-dot-running { background: #22c55e !important; animation: workerPulse 1.8s infinite; box-shadow: 0 0 0 4px rgba(34,197,94,0.15); }
+.worker-dot-idle    { background: #f59e0b !important; box-shadow: 0 0 0 4px rgba(245,158,11,0.15); }
+.worker-dot-error   { background: #ef4444 !important; box-shadow: 0 0 0 4px rgba(239,68,68,0.15); }
+.worker-dot-down    { background: #6b7280 !important; }
 </style>
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// ============================================================
+// PATCH: Worker status polling + manual refresh
+// ============================================================
+async function refreshWorkerStatus() {
+    const dot    = document.getElementById('workerStatusDot');
+    const label  = document.getElementById('workerStatusLabel');
+    const detail = document.getElementById('workerStatusDetail');
+
+    try {
+        const res  = await fetch('/api/findmy/worker-status');
+        const body = await res.json();
+        if (!body.success) throw new Error(body.message || 'Gagal');
+
+        const s = body.data || {};
+        // Determine state
+        let cls = 'worker-dot-down', text = 'Worker tidak jalan', icon = 'x-circle';
+        if (s.is_running && s.is_leader) {
+            if (s.last_run_success === false) {
+                cls = 'worker-dot-error';
+                text = 'Worker hidup tapi ada error';
+                icon = 'exclamation-triangle';
+            } else if (s.last_run_at) {
+                cls = 'worker-dot-running';
+                text = 'Worker aktif (leader)';
+                icon = 'check-circle-fill';
+            } else {
+                cls = 'worker-dot-idle';
+                text = 'Worker hidup, menunggu cycle pertama';
+                icon = 'hourglass-split';
+            }
+        } else if (s.is_running && !s.is_leader) {
+            cls = 'worker-dot-idle';
+            text = 'Non-leader (worker ada di proses lain)';
+            icon = 'info-circle';
+        }
+        dot.className = cls;
+        label.innerHTML = `<i class="bi bi-${icon}"></i> ${text}`;
+
+        const parts = [];
+        parts.push(`interval: ${s.interval_seconds || '?'}s`);
+        parts.push(`pid: ${s.pid || '?'}`);
+        if (s.last_run_at)                parts.push(`terakhir run: ${s.last_run_at}`);
+        if (s.run_count !== undefined)    parts.push(`${s.run_count} cycle`);
+        if (s.error_count)                parts.push(`${s.error_count} error`);
+        if (s.trackers_updated_last_run !== undefined)
+            parts.push(`${s.trackers_updated_last_run} tracker ter-update`);
+        if (s.last_error)                 parts.push(`⚠️ ${s.last_error}`);
+        detail.textContent = parts.join(' · ');
+    } catch (e) {
+        dot.className = 'worker-dot-error';
+        label.innerHTML = `<i class="bi bi-wifi-off"></i> Gagal baca status worker`;
+        detail.textContent = e.message;
+    }
+}
+
+async function triggerUpdateAll() {
+    const btn = document.getElementById('btnForceUpdate');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Memproses (max ~30s)...';
+
+    try {
+        const res = await fetch('/api/findmy/update-all', { method: 'POST' });
+        const body = await res.json();
+        if (!body.success) throw new Error(body.message || 'Gagal');
+        alert(`✅ ${body.message || 'Sukses'}\n\nHalaman akan di-reload.`);
+        window.location.reload();
+    } catch (e) {
+        alert('❌ Gagal update: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+        refreshWorkerStatus();
+    }
+}
+
+// Initial load + refresh status tiap 30 detik
+refreshWorkerStatus();
+setInterval(refreshWorkerStatus, 30000);
+
+// ============================================================
+// Existing modal logic (unchanged)
+// ============================================================
 function showEditModal(tracker) {
     document.getElementById('editForm').action = '/findmy-trackers/edit/' + tracker.id;
     document.getElementById('edit_canonical_id').value = tracker.canonical_id;

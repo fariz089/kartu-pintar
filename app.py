@@ -1918,22 +1918,53 @@ def register_error_handlers(app):
 # Create app instance for Gunicorn/WSGI servers
 app = create_app()
 
+
+# ============================================================
+# Google Find Hub Integration — AKTIVASI DI LEVEL MODULE
+# ============================================================
+# ⚠️  PATCH: Sebelumnya blok ini ada di dalam `if __name__ == '__main__':`
+# sehingga TIDAK PERNAH JALAN di Gunicorn (gunicorn import app.py sebagai
+# module WSGI, bukan via `python app.py`). Akibatnya worker background
+# untuk update lokasi tracker tidak pernah start → UI selalu "Belum ada data".
+#
+# Sekarang init-nya di level module supaya:
+#   - `python app.py`           → jalan (dev mode)
+#   - `gunicorn app:app`        → jalan (production)
+#   - `python findmy_worker.py` → jalan (dedicated worker service)
+#
+# Multi-worker safety: `findmy.start_worker()` pakai fcntl.flock leader
+# election di `/tmp/kartu_pintar_findmy_leader.lock`, jadi meskipun
+# gunicorn pakai `--workers 4`, cuma SATU worker yang beneran jalanin loop.
+# ============================================================
+
+_FINDMY_AUTO_START = os.environ.get('FINDMY_AUTO_START', '1').lower() in ('1', 'true', 'yes')
+
+findmy = None  # exported for findmy_worker.py and tests
+
+try:
+    from findmy_service import FindMyLocationService, register_findmy_routes
+
+    findmy = FindMyLocationService()
+    findmy.init_app(app)
+    register_findmy_routes(app, findmy)
+
+    if _FINDMY_AUTO_START:
+        interval = app.config.get('FINDMY_UPDATE_INTERVAL', 60)
+        started = findmy.start_worker(interval=interval, require_leader=True)
+        if started:
+            print(f"[FindMy] ✅ Integration aktif. Worker leader pid={os.getpid()}, interval={interval}s", flush=True)
+        else:
+            # Expected for non-leader gunicorn workers
+            print(f"[FindMy] ℹ️  Integration loaded (non-leader pid={os.getpid()}) — worker tidak jalan di sini", flush=True)
+    else:
+        print("[FindMy] ⏸  FINDMY_AUTO_START=0 → worker tidak di-start otomatis "
+              "(biasanya kalau kamu pakai findmy_worker.py service terpisah).", flush=True)
+
+except Exception as e:
+    import traceback
+    print(f"[FindMy] ❌ Integration gagal: {e}", flush=True)
+    print(traceback.format_exc(), flush=True)
+
+
 if __name__ == '__main__':
-    # --- Aktifkan Google Find Hub Integration ---
-    try:
-        from findmy_service import FindMyLocationService, register_findmy_routes
-
-        findmy = FindMyLocationService()
-        findmy.init_app(app)
-        register_findmy_routes(app, findmy)
-
-        # Auto-update lokasi setiap 1 menit
-        findmy.start_worker(interval=app.config.get('FINDMY_UPDATE_INTERVAL', 60))
-
-        print("[FindMy] Google Find Hub integration aktif!")
-        print(f"[FindMy] Tracker mapping: {len(app.config.get('FINDMY_TRACKER_MAP', {}))} device(s)")
-        print("[FindMy] Auto-update lokasi setiap 1 menit.")
-    except Exception as e:
-        print(f"[FindMy] Integration tidak aktif: {e}")
-
     app.run(debug=True, host='0.0.0.0', port=5000)
