@@ -5,7 +5,7 @@ Kartu Pintar - FindMy Worker (Standalone)
 
 Script worker yang jalan terpisah dari gunicorn. Gunanya:
   - Loop update lokasi semua tracker tiap N detik
-  - Jalan sebagai service sendiri di docker-compose (lihat findmy-worker service)
+  - Jalan sebagai service sendiri di docker-compose (service `findmy-worker`)
   - Web app (gunicorn) bisa di-scale/restart tanpa ganggu tracking
 
 CARA PAKAI:
@@ -14,8 +14,6 @@ CARA PAKAI:
       python findmy_worker.py
 
   Docker (recommended): Lihat docker-compose.yml service `findmy-worker`.
-      Set FINDMY_AUTO_START=0 di service `web` supaya gunicorn tidak ikut
-      jalanin worker, lalu aktifkan service findmy-worker.
 
 ENV VARS:
   FINDMY_UPDATE_INTERVAL  Interval loop dalam detik (default: 60)
@@ -30,6 +28,17 @@ import sys
 import signal
 import time
 import logging
+
+# ============================================================
+# ⚠️ PENTING: Harus SEBELUM `from app import app`
+# ============================================================
+# `app.py` jalanin FindMy init + start_worker di level module saat di-import.
+# Kalau kita tidak override env var di sini, worker akan jalan DUA KALI:
+#   1. Dari app.py saat `from app import app` (module-level init)
+#   2. Dari main() script ini
+# Dua-duanya di proses yang sama = 2x spam Google API.
+# Set env var SEKARANG, sebelum app.py kepikiran buat auto-start.
+os.environ['FINDMY_AUTO_START'] = '0'
 
 # Ensure the project root is on sys.path (so `from models import ...` works
 # when this script is invoked from any working directory).
@@ -46,7 +55,7 @@ log = logging.getLogger('findmy_worker_main')
 
 
 def main():
-    # Import here so logging config applies first
+    # Import AFTER setting FINDMY_AUTO_START=0 above
     from app import app
     from findmy_service import FindMyLocationService
 

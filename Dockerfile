@@ -2,8 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# ⚠️  PATCH: Tambah libffi-dev + libssl-dev buat cryptography/pyscrypt build,
-# dan git buat kasus kalau findmy_tools submodule perlu rebuild.
+# Build tools + libs for cryptography/pyscrypt/etc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc default-libmysqlclient-dev pkg-config \
     libffi-dev libssl-dev \
@@ -15,15 +14,23 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # ============================================================
-# ⚠️  PATCH: Install findmy_tools runtime deps
+# ⚠️  PATCH v2: Install findmy_tools runtime deps
 # ============================================================
-# Bug sebelumnya: Dockerfile tidak install requirements findmy_tools,
-# jadi `_load_tools()` gagal ImportError (gpsoauth, pyscrypt, protobuf,
-# aiohttp, http_ece, pycryptodomex, ecdsa, dll. tidak ada).
+# Kenapa selenium + undetected-chromedriver ikut di-install:
+# Meskipun Chrome HANYA dipanggil saat first-time login (generate secrets.json),
+# modul-modul ini di-import di LEVEL MODULE melalui chain:
+#   NovaApi/nova_request.py
+#     -> Auth/aas_token_retrieval.py
+#       -> Auth/auth_flow.py
+#         -> chrome_driver.py  (`import undetected_chromedriver as uc`)
+#         -> `from selenium.webdriver.support.ui import WebDriverWait`
 #
-# Kita skip package yang cuma dibutuhkan saat FIRST-TIME login interaktif
-# (undetected-chromedriver, selenium, frida) — itu dipakai sekali aja
-# buat generate secrets.json, tidak butuh di runtime container.
+# Jadi `import NovaApi.nova_request` langsung gagal kalau selenium tidak ada.
+# Package-nya kita install tapi Chrome binary TIDAK perlu — Chrome cuma
+# dipanggil kalau token expired, dan kita sudah punya secrets.json.
+#
+# `frida` ada di requirements.txt tapi TIDAK dipakai di kode manapun
+# (grep-confirmed), jadi tetap kita skip buat hemat image size.
 # ============================================================
 RUN pip install --no-cache-dir \
     gpsoauth>=1.1.1 \
@@ -38,7 +45,9 @@ RUN pip install --no-cache-dir \
     httpx>=0.28.0 \
     h2>=4.1.0 \
     aiohttp>=3.11.8 \
-    http_ece>=1.1.0
+    http_ece>=1.1.0 \
+    selenium>=4.27.1 \
+    undetected-chromedriver>=3.5.5
 
 # Copy source
 COPY . .
@@ -49,7 +58,4 @@ ENV FINDMY_LEADER_LOCK=/var/run/kartu-pintar/findmy_leader.lock
 
 EXPOSE 5000
 
-# ⚠️  NOTE: Sekarang worker FindMy jalan di dalam gunicorn (cuma 1 worker
-# yang dapat leader lock). Kalau mau lebih clean, pakai docker-compose.yml
-# yang spawn service `findmy-worker` terpisah + set FINDMY_AUTO_START=0 di sini.
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--access-logfile", "-", "--error-logfile", "-", "app:app"]

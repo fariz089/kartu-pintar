@@ -37,38 +37,16 @@ services:
       - DB_PASSWORD=KartuPintar2025!
       - DB_NAME=kartu_pintar
       - FINDMY_UPDATE_INTERVAL=60
-      # ⚠️  PATCH: Set ke 0 kalau kamu aktifkan service `findmy-worker` di bawah,
-      # supaya gunicorn TIDAK ikut jalanin worker (biar web tetap ringan).
-      # Kalau kamu cuma pakai service `web` aja, biarkan 1 (default).
+      # Sudah dedicated findmy-worker service di bawah → gunicorn tidak ikut jalanin worker
       - FINDMY_AUTO_START=0
     volumes:
       - uploads_data:/app/static/uploads
-      # ⚠️  PATCH: Persist secrets.json antar rebuild supaya nggak perlu
-      # login Google ulang tiap `docker compose down`
       - findmy_auth:/app/findmy_tools/Auth
     depends_on:
       db:
         condition: service_healthy
     networks:
       - app-network
-
-  # ============================================================
-  # (OPSIONAL tapi DIREKOMENDASIKAN) — Dedicated FindMy worker
-  # ============================================================
-  # Kenapa dipisah: worker FindMy butuh long-running thread + FCM listener.
-  # Ini ga cocok nempel di gunicorn (web worker harus ringan & stateless).
-  # Dengan service terpisah:
-  #   - Web (gunicorn) bisa di-scale/restart tanpa ganggu tracking
-  #   - Worker bisa di-restart kalau macet tanpa turunin web
-  #   - Log lebih clean, terpisah per concern
-  #
-  # CARA PAKAI:
-  #   1. Set `FINDMY_AUTO_START=0` di service `web` di atas
-  #   2. Uncomment block `findmy-worker` di bawah
-  #   3. `docker compose up -d --build`
-  #
-  # Kalau ga mau repot, biarkan saja (worker tetap jalan di dalam gunicorn).
-  # ============================================================
 
   findmy-worker:
     build: .
@@ -84,6 +62,11 @@ services:
       - DB_PASSWORD=KartuPintar2025!
       - DB_NAME=kartu_pintar
       - FINDMY_UPDATE_INTERVAL=60
+      # ⚠️  WAJIB 0 di sini! Kalau tidak, worker jalan 2x:
+      #   - Sekali dari app.py module-level (saat `from app import app`)
+      #   - Sekali dari findmy_worker.py main()
+      # Dobel worker = dobel spam Google API.
+      - FINDMY_AUTO_START=0
     volumes:
       - findmy_auth:/app/findmy_tools/Auth
     depends_on:
@@ -109,4 +92,4 @@ networks:
 volumes:
   mysql_data:
   uploads_data:
-  findmy_auth: # ⚠️  PATCH: new — persist secrets.json
+  findmy_auth:
