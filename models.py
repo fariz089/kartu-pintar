@@ -68,7 +68,7 @@ class Anggota(db.Model):
     nrp = db.Column(db.String(20), unique=True, nullable=False, index=True)
     nama = db.Column(db.String(100), nullable=False)
     pangkat = db.Column(db.String(50), nullable=False)
-    satuan = db.Column(db.String(100), default='Poltekkad', nullable=False)
+    satuan = db.Column(db.String(100), default='Poltekad', nullable=False)
     jabatan = db.Column(db.String(100), nullable=True)
     jurusan = db.Column(db.String(100), nullable=True)
     tempat_lahir = db.Column(db.String(100), nullable=True)

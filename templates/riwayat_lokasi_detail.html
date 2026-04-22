@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Lokasi {{ anggota.nama }}{% endblock %}
+{% block page_title %}Riwayat Lokasi{% endblock %}
+
+{% block extra_css %}
+<style>
+    .lokasi-timeline { max-height: 400px; overflow-y: auto; }
+    .lokasi-item {
+        padding: 10px 14px; border-left: 3px solid var(--gold-400);
+        margin-bottom: 6px; background: var(--bg-card); border-radius: 0 8px 8px 0;
+        cursor: pointer; transition: all 0.2s;
+    }
+    .lokasi-item:hover { border-left-color: var(--gold-300); background: rgba(197, 164, 78, 0.06); }
+    .lokasi-item.active { border-left-color: var(--gold-300); background: rgba(197, 164, 78, 0.12); }
+    .lokasi-item .waktu { font-size: 11px; color: var(--text-muted); }
+    .sumber-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #fff; }
+    .sumber-nfc { background: #22c55e; }
+    .sumber-qr { background: #3b82f6; }
+    .sumber-googlefindhub { background: #8b5cf6; }
+    .sumber-manual { background: #f59e0b; }
+    .stat-box {
+        text-align: center; padding: 14px; border-radius: 10px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+    }
+    .stat-box h3 { margin: 0; font-size: 22px; color: var(--gold-400); }
+    .stat-box small { font-size: 11px; color: var(--text-muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+    <div>
+        <h3 style="margin: 0; font-size: 16px; color: var(--text-primary);">
+            <i class="bi bi-person-fill" style="color: var(--gold-400)"></i> {{ anggota.nama }}
+        </h3>
+        <p style="margin: 2px 0 0; font-size: 13px; color: var(--text-muted);">{{ anggota.pangkat }} · {{ anggota.id }} · {{ anggota.satuan }}</p>
+    </div>
+    <a href="{{ url_for('riwayat_lokasi') }}" class="btn-sm"><i class="bi bi-arrow-left"></i> Kembali</a>
+</div>
+
+<!-- Stats -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px;">
+    <div class="stat-box">
+        <h3>{{ history|length }}</h3>
+        <small>Total Titik</small>
+    </div>
+    <div class="stat-box">
+        <h3>{{ history|selectattr('sumber', 'equalto', 'NFC')|list|length }}</h3>
+        <small>Scan NFC</small>
+    </div>
+    <div class="stat-box">
+        <h3>{{ history|selectattr('sumber', 'equalto', 'QR')|list|length }}</h3>
+        <small>Scan QR</small>
+    </div>
+    <div class="stat-box">
+        <h3>{{ history|selectattr('sumber', 'equalto', 'GoogleFindHub')|list|length }}</h3>
+        <small>Find Hub GPS</small>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 340px; gap: 16px;">
+    <!-- Map -->
+    <div class="card" style="min-height: 0;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2><i class="bi bi-map-fill" style="color: var(--gold-400)"></i> Peta Pergerakan</h2>
+            <div style="display: flex; gap: 6px;">
+                <button class="btn-filter active" onclick="togglePath(this)"><i class="bi bi-bezier2"></i> Jalur</button>
+                <button class="btn-filter" onclick="fitAll()"><i class="bi bi-arrows-fullscreen"></i> Fit</button>
+            </div>
+        </div>
+        <div class="map-container" style="position: relative;">
+            <div id="map" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; border-radius: 0 0 12px 12px;"></div>
+            <div class="map-placeholder" id="map-loading">
+                <i class="bi bi-geo-alt-fill"></i>
+                <p>Memuat Peta...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card" style="min-height: 0;">
+        <div class="card-header">
+            <h2><i class="bi bi-clock-history" style="color: var(--gold-400)"></i> Timeline</h2>
+        </div>
+        <div class="card-body lokasi-timeline">
+            {% if history %}
+            {% for h in history %}
+            <div class="lokasi-item" data-lat="{{ h.latitude }}" data-lng="{{ h.longitude }}" data-idx="{{ loop.index0 }}" onclick="focusLocation(this)">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1; min-width: 0;">
+                        <strong style="font-size: 12px; display: block;">{{ h.lokasi_nama or 'Lokasi Tidak Diketahui' }}</strong>
+                        <div class="waktu"><i class="bi bi-clock"></i> {{ h.waktu }}</div>
+                        {% if h.scanned_by_nama %}
+                        <div class="waktu"><i class="bi bi-person"></i> {{ h.scanned_by_nama }}</div>
+                        {% endif %}
+                    </div>
+                    <span class="sumber-badge sumber-{{ h.sumber|lower }}">{{ h.sumber }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                <i class="bi bi-geo-alt" style="font-size: 36px; opacity: 0.3;"></i>
+                <p style="margin-top: 8px;">Belum ada riwayat lokasi</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var map, pathLine, markers = [], infoWindow;
+var pathVisible = true;
+
+var historyData = [
+{% for h in history %}
+    { lat: {{ h.latitude }}, lng: {{ h.longitude }}, nama: "{{ h.lokasi_nama|default('Unknown', true)|e }}", waktu: "{{ h.waktu }}", sumber: "{{ h.sumber }}", idx: {{ loop.index0 }} },
+{% endfor %}
+];
+
+var SOURCE_COLORS = { NFC: '#22c55e', QR: '#3b82f6', GoogleFindHub: '#8b5cf6', Manual: '#f59e0b' };
+
+// Light map style
+var lightMapStyle = [
+    { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#e0e0e0' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e7f2' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#c8e6c9' }] },
+    { featureType: 'landscape.man_made', elementType: 'geometry.fill', stylers: [{ color: '#e8e8e8' }] },
+    { featureType: 'landscape.man_made', elementType: 'geometry.stroke', stylers: [{ color: '#d5d5d5' }] }
+];
+
+function initMap() {
+    document.getElementById('map-loading').style.display = 'none';
+    var center = historyData.length > 0 ? { lat: historyData[0].lat, lng: historyData[0].lng } : { lat: -6.8927, lng: 107.6100 };
+
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: center, zoom: 15, styles: lightMapStyle,
+        mapTypeControl: false, streetViewControl: false
+    });
+    infoWindow = new google.maps.InfoWindow();
+
+    var bounds = new google.maps.LatLngBounds();
+    // Path coordinates (chronological = reverse of desc)
+    var pathCoords = [];
+
+    historyData.forEach(function(h, i) {
+        var color = SOURCE_COLORS[h.sumber] || '#c5a44e';
+        var marker = new google.maps.Marker({
+            position: { lat: h.lat, lng: h.lng }, map: map,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: i === 0 ? 10 : 7,
+                fillColor: color, fillOpacity: i === 0 ? 1 : 0.7,
+                strokeColor: '#fff', strokeWeight: 2
+            },
+            title: h.nama
+        });
+        marker.addListener('click', function() {
+            infoWindow.setContent(
+                '<div style="font-size:13px;"><strong>' + h.nama + '</strong><br>' +
+                '<small>' + h.waktu + '</small><br>' +
+                '<span style="background:' + color + ';color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;">' + h.sumber + '</span></div>'
+            );
+            infoWindow.open(map, marker);
+        });
+        markers.push(marker);
+        bounds.extend(marker.getPosition());
+    });
+
+    // Draw path polyline
+    var reversed = historyData.slice().reverse();
+    pathCoords = reversed.map(function(h) { return { lat: h.lat, lng: h.lng }; });
+    if (pathCoords.length > 1) {
+        pathLine = new google.maps.Polyline({
+            path: pathCoords, geodesic: true,
+            strokeColor: '#c5a44e', strokeOpacity: 0.7, strokeWeight: 3,
+            map: map
+        });
+    }
+
+    // Fit bounds
+    if (historyData.length > 0) {
+        map.fitBounds(bounds);
+        google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+            if (map.getZoom() > 17) map.setZoom(17);
+        });
+    }
+}
+
+function togglePath(btn) {
+    if (!pathLine) return;
+    pathVisible = !pathVisible;
+    pathLine.setMap(pathVisible ? map : null);
+    btn.classList.toggle('active');
+}
+
+function fitAll() {
+    if (markers.length === 0) return;
+    var bounds = new google.maps.LatLngBounds();
+    markers.forEach(function(m) { bounds.extend(m.getPosition()); });
+    map.fitBounds(bounds);
+}
+
+function focusLocation(el) {
+    document.querySelectorAll('.lokasi-item').forEach(function(e) { e.classList.remove('active'); });
+    el.classList.add('active');
+    var lat = parseFloat(el.dataset.lat);
+    var lng = parseFloat(el.dataset.lng);
+    var idx = parseInt(el.dataset.idx);
+    map.panTo({ lat: lat, lng: lng });
+    map.setZoom(17);
+    if (markers[idx]) google.maps.event.trigger(markers[idx], 'click');
+}
+</script>
+
+{% if config.GOOGLE_MAPS_API_KEY %}
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&callback=initMap"></script>
+{% else %}
+<script>document.getElementById('map-loading').innerHTML = '<p style="color:var(--red-300)">GOOGLE_MAPS_API_KEY belum diset</p>';</script>
+{% endif %}
+{% endblock %}

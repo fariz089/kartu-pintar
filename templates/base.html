@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Smart Card{% endblock %} — Poltekkad</title>
+    <title>{% block title %}Smart Card{% endblock %} — Poltekad</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +26,7 @@
                 </div>
                 <div class="logo-text">
                     <span class="logo-title">SMART CARD</span>
-                    <span class="logo-subtitle">POLTEKKAD</span>
+                    <span class="logo-subtitle">POLTEKAD</span>
                 </div>
             </div>
             <button class="sidebar-close" id="sidebarClose">
@@ -94,6 +94,10 @@
                     <i class="bi bi-geo-alt-fill"></i>
                     <span>Lacak Kartu</span>
                 </a>
+                <a href="{{ url_for('riwayat_lokasi') }}" class="nav-link {% if 'riwayat_lokasi' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Riwayat Lokasi</span>
+                </a>
                 <a href="{{ url_for('scan_log') }}" class="nav-link {% if request.endpoint == 'scan_log' %}active{% endif %}">
                     <i class="bi bi-journal-text"></i>
                     <span>Log Scan Kartu</span>
@@ -101,6 +105,10 @@
                 <a href="{{ url_for('findmy_tracker_list') }}" class="nav-link {% if 'findmy' in request.endpoint %}active{% endif %}">
                     <i class="bi bi-broadcast-pin"></i>
                     <span>FindMy Trackers</span>
+                </a>
+                <a href="{{ url_for('cetak_kartu') }}" class="nav-link {% if request.endpoint == 'cetak_kartu' %}active{% endif %}">
+                    <i class="bi bi-printer-fill"></i>
+                    <span>Cetak Kartu</span>
                 </a>
             </div>
 

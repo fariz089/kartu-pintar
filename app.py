@@ -1,6 +1,6 @@
 """
 Kartu Pintar - Sistem Kartu Tanda Anggota Digital
-TNI Angkatan Darat - Poltekkad
+TNI Angkatan Darat - Poltekad
 Flask Application with MySQL Backend
 """
 
@@ -351,7 +351,7 @@ def register_routes(app):
                     kartu_id=kartu_id, nrp=nrp,
                     nama=request.form.get('nama', '').strip(),
                     pangkat=request.form.get('pangkat', '').strip(),
-                    satuan=request.form.get('satuan', 'Poltekkad').strip(),
+                    satuan=request.form.get('satuan', 'Poltekad').strip(),
                     jabatan=request.form.get('jabatan', '').strip(),
                     jurusan=request.form.get('jurusan', '').strip(),
                     tempat_lahir=request.form.get('tempat_lahir', '').strip(),
@@ -540,13 +540,13 @@ def register_routes(app):
                 saldo_sebelum=saldo_sebelum, saldo_sesudah=anggota.saldo,
                 status='Berhasil', metode=metode, operator_id=session.get('user_id'),
             ))
-            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_nama = 'Kantin Poltekad'
             anggota.lokasi_lat = -6.8927
             anggota.lokasi_lng = 107.6100
             anggota.lokasi_waktu = datetime.now()
             db.session.add(LokasiHistory(
                 anggota_id=anggota.id, latitude=-6.8927, longitude=107.6100,
-                lokasi_nama='Kantin Poltekkad', sumber=metode,
+                lokasi_nama='Kantin Poltekad', sumber=metode,
             ))
             db.session.commit()
             flash(f'Pembayaran berhasil! {anggota.nama} - Rp {nominal:,.0f} | Sisa: Rp {anggota.saldo:,.0f}'.replace(',', '.'), 'success')
@@ -629,6 +629,40 @@ def register_routes(app):
         logs = LokasiHistory.query.order_by(LokasiHistory.waktu.desc()).limit(100).all()
         scan_data = [l.to_dict() for l in logs]
         return render_template('admin/scan_log.html', scan_data=scan_data)
+
+    # --- RIWAYAT LOKASI (Location History) — Admin only ---
+
+    @app.route('/riwayat-lokasi')
+    @admin_required
+    def riwayat_lokasi():
+        anggota_raw = Anggota.query.order_by(Anggota.nama).all()
+        anggota_data = [{
+            'id': a.kartu_id, 'nama': a.nama, 'pangkat': a.pangkat,
+            'status_kartu': a.status_kartu,
+        } for a in anggota_raw]
+        return render_template('riwayat_lokasi.html', anggota_data=anggota_data)
+
+    @app.route('/riwayat-lokasi/<anggota_id>')
+    @admin_required
+    def riwayat_lokasi_detail(anggota_id):
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            flash('Data anggota tidak ditemukan.', 'danger')
+            return redirect(url_for('riwayat_lokasi'))
+        history = LokasiHistory.query.filter_by(anggota_id=a.id)\
+            .order_by(LokasiHistory.waktu.desc()).limit(200).all()
+        return render_template('riwayat_lokasi_detail.html',
+            anggota=anggota_to_dict(a),
+            history=[h.to_dict() for h in history])
+
+    # --- CETAK STIKER KARTU — Admin only ---
+
+    @app.route('/cetak-kartu')
+    @admin_required
+    def cetak_kartu():
+        anggota_raw = Anggota.query.order_by(Anggota.nama).all()
+        anggota_data = [anggota_to_dict(a, include_lokasi=False) for a in anggota_raw]
+        return render_template('cetak_kartu.html', anggota_data=anggota_data)
 
     # --- FINDMY TRACKER MANAGEMENT (Admin only) ---
 
@@ -1231,7 +1265,7 @@ def register_api_routes(app):
                 status='Berhasil', metode=metode, operator_id=request.current_user_id,
             )
             db.session.add(trx)
-            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_nama = 'Kantin Poltekad'
             anggota.lokasi_waktu = datetime.now()
             db.session.commit()
             return jsonify({'success': True, 'data': {
@@ -1692,7 +1726,7 @@ def register_api_routes(app):
                 db.session.add(ti)
                 c['produk'].stok -= c['jumlah']
             
-            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_nama = 'Kantin Poltekad'
             anggota.lokasi_waktu = datetime.now()
             db.session.commit()
             
@@ -1793,11 +1827,11 @@ def register_api_routes(app):
                 ))
                 c['produk'].stok -= c['jumlah']
             
-            anggota.lokasi_nama = 'Kantin Poltekkad'
+            anggota.lokasi_nama = 'Kantin Poltekad'
             anggota.lokasi_waktu = datetime.now()
             db.session.add(LokasiHistory(
                 anggota_id=anggota.id, latitude=-6.8927, longitude=107.6100,
-                lokasi_nama='Kantin Poltekkad', sumber=metode,
+                lokasi_nama='Kantin Poltekad', sumber=metode,
                 scanned_by_user_id=request.current_user_id,
             ))
             db.session.commit()

@@ -45,7 +45,7 @@ def seed_database():
         Anggota(
             kartu_id='KP-2025-001', nrp='21250001',
             nama='Serda Budi Santoso', pangkat='Sersan Dua',
-            satuan='Poltekkad', jabatan='Taruna Tingkat III',
+            satuan='Poltekad', jabatan='Taruna Tingkat III',
             jurusan='Teknik Elektronika',
             tempat_lahir='Bandung', tanggal_lahir=date(2002, 3, 15),
             golongan_darah='O', agama='Islam',
@@ -55,13 +55,13 @@ def seed_database():
             mili_id='FZDc3ImYoVWNm5kNwUTT5IjM',
             saldo=750000, status_kartu='Aktif',
             lokasi_lat=-6.8927, lokasi_lng=107.6100,
-            lokasi_nama='Kantin Poltekkad',
+            lokasi_nama='Kantin Poltekad',
             lokasi_waktu=datetime(2025, 2, 26, 8, 30, 0),
         ),
         Anggota(
             kartu_id='KP-2025-002', nrp='21250002',
             nama='Praka Andi Wijaya', pangkat='Prajurit Kepala',
-            satuan='Poltekkad', jabatan='Taruna Tingkat II',
+            satuan='Poltekad', jabatan='Taruna Tingkat II',
             jurusan='Teknik Mesin',
             tempat_lahir='Surabaya', tanggal_lahir=date(2003, 7, 22),
             golongan_darah='A', agama='Islam',
@@ -70,13 +70,13 @@ def seed_database():
             nfc_uid='E5F6G7H8', qr_data='KP-2025-002',
             saldo=520000, status_kartu='Aktif',
             lokasi_lat=-6.8930, lokasi_lng=107.6105,
-            lokasi_nama='Gedung Utama Poltekkad',
+            lokasi_nama='Gedung Utama Poltekad',
             lokasi_waktu=datetime(2025, 2, 26, 9, 15, 0),
         ),
         Anggota(
             kartu_id='KP-2025-003', nrp='21250003',
             nama='Pratu Rizki Firmansyah', pangkat='Prajurit Satu',
-            satuan='Poltekkad', jabatan='Taruna Tingkat I',
+            satuan='Poltekad', jabatan='Taruna Tingkat I',
             jurusan='Teknik Informatika',
             tempat_lahir='Jakarta', tanggal_lahir=date(2004, 1, 10),
             golongan_darah='B', agama='Kristen',
@@ -85,13 +85,13 @@ def seed_database():
             nfc_uid='I9J0K1L2', qr_data='KP-2025-003',
             saldo=310000, status_kartu='Aktif',
             lokasi_lat=-6.8925, lokasi_lng=107.6098,
-            lokasi_nama='Asrama Poltekkad',
+            lokasi_nama='Asrama Poltekad',
             lokasi_waktu=datetime(2025, 2, 26, 7, 45, 0),
         ),
         Anggota(
             kartu_id='KP-2025-004', nrp='21250004',
             nama='Sertu Dewi Kartika', pangkat='Sersan Satu',
-            satuan='Poltekkad', jabatan='Staff Pengajar',
+            satuan='Poltekad', jabatan='Staff Pengajar',
             jurusan='Teknik Elektronika',
             tempat_lahir='Yogyakarta', tanggal_lahir=date(2000, 9, 5),
             golongan_darah='AB', agama='Islam',
@@ -100,13 +100,13 @@ def seed_database():
             nfc_uid='M3N4O5P6', qr_data='KP-2025-004',
             saldo=980000, status_kartu='Aktif',
             lokasi_lat=-6.8935, lokasi_lng=107.6110,
-            lokasi_nama='Ruang Kelas Poltekkad',
+            lokasi_nama='Ruang Kelas Poltekad',
             lokasi_waktu=datetime(2025, 2, 26, 10, 0, 0),
         ),
         Anggota(
             kartu_id='KP-2025-005', nrp='21250005',
             nama='Kopda Agus Prasetyo', pangkat='Kopral Dua',
-            satuan='Poltekkad', jabatan='Taruna Tingkat II',
+            satuan='Poltekad', jabatan='Taruna Tingkat II',
             jurusan='Teknik Mesin',
             tempat_lahir='Semarang', tanggal_lahir=date(2003, 11, 28),
             golongan_darah='O', agama='Islam',
@@ -115,7 +115,7 @@ def seed_database():
             nfc_uid='Q7R8S9T0', qr_data='KP-2025-005',
             saldo=150000, status_kartu='Hilang',
             lokasi_lat=-6.8940, lokasi_lng=107.6095,
-            lokasi_nama='Lapangan Upacara Poltekkad',
+            lokasi_nama='Lapangan Upacara Poltekad',
             lokasi_waktu=datetime(2025, 2, 25, 16, 30, 0),
         ),
     ]
@@ -128,7 +128,7 @@ def seed_database():
     # ========================
     admin = User(
         username='admin', role='admin',
-        nama='Administrator Poltekkad',
+        nama='Administrator Poltekad',
         email='admin@poltekkad.ac.id', is_active=True,
     )
     admin.set_password('admin123')
@@ -143,7 +143,7 @@ def seed_database():
 
     operator = User(
         username='kantin1', role='operator_kantin',
-        nama='Operator Kantin Poltekkad',
+        nama='Operator Kantin Poltekad',
         email='kantin@poltekkad.ac.id', is_active=True,
     )
     operator.set_password('kantin123')
@@ -209,13 +209,13 @@ def seed_database():
     # ========================
     lokasi_data = []
     lokasi_spots = [
-        (-6.8927, 107.6100, 'Kantin Poltekkad'),
-        (-6.8930, 107.6105, 'Gedung Utama Poltekkad'),
-        (-6.8925, 107.6098, 'Asrama Poltekkad'),
-        (-6.8935, 107.6110, 'Ruang Kelas Poltekkad'),
-        (-6.8940, 107.6095, 'Lapangan Upacara Poltekkad'),
-        (-6.8928, 107.6102, 'Perpustakaan Poltekkad'),
-        (-6.8932, 107.6108, 'Lab Komputer Poltekkad'),
+        (-6.8927, 107.6100, 'Kantin Poltekad'),
+        (-6.8930, 107.6105, 'Gedung Utama Poltekad'),
+        (-6.8925, 107.6098, 'Asrama Poltekad'),
+        (-6.8935, 107.6110, 'Ruang Kelas Poltekad'),
+        (-6.8940, 107.6095, 'Lapangan Upacara Poltekad'),
+        (-6.8928, 107.6102, 'Perpustakaan Poltekad'),
+        (-6.8932, 107.6108, 'Lab Komputer Poltekad'),
     ]
 
     for i, anggota in enumerate(anggota_list):

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Riwayat Lokasi{% endblock %}
+{% block page_title %}Riwayat Lokasi{% endblock %}
+{% block content %}
+<div class="section-header">
+    <p class="text-muted" style="font-size: 14px">Lihat pergerakan lokasi anggota berdasarkan riwayat scan & GPS</p>
+</div>
+
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h2><i class="bi bi-clock-history" style="color: var(--gold-400)"></i> Riwayat Lokasi Anggota</h2>
+        <div style="position: relative; width: 260px;">
+            <i class="bi bi-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px;"></i>
+            <input type="text" id="searchInput" placeholder="Cari nama / NRP..." style="width: 100%; padding: 8px 12px 8px 36px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-primary); font-size: 13px;">
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table class="data-table" id="tabelAnggota">
+                <thead>
+                    <tr>
+                        <th>Kartu ID</th>
+                        <th>Nama</th>
+                        <th>Pangkat</th>
+                        <th>Status</th>
+                        <th style="text-align: center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for a in anggota_data %}
+                    <tr>
+                        <td><code style="color: var(--gold-400)">{{ a.id }}</code></td>
+                        <td><strong>{{ a.nama }}</strong></td>
+                        <td>{{ a.pangkat }}</td>
+                        <td><span class="badge badge-{{ a.status_kartu|lower }}">{{ a.status_kartu }}</span></td>
+                        <td style="text-align: center">
+                            <a href="{{ url_for('riwayat_lokasi_detail', anggota_id=a.id) }}" class="btn-sm">
+                                <i class="bi bi-map"></i> Lihat Riwayat
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('searchInput').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#tabelAnggota tbody tr').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
