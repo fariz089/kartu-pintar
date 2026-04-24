@@ -189,6 +189,27 @@ def generate_trx_id():
     return f"TRX-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
 
+def extract_mili_id(raw_data):
+    """Extract MiLi Card ID dari URL bawaan MiLi.
+
+    Input bisa berupa:
+      - URL lengkap: https://micard.mymili.com/info/FZDc3ImYoVWNm5kNwUTT5IjM
+      - ID saja: FZDc3ImYoVWNm5kNwUTT5IjM
+    Output: selalu ID saja (cleaned).
+    """
+    if not raw_data:
+        return None
+    data = raw_data.strip()
+    if not data:
+        return None
+    if '/info/' in data:
+        parts = data.split('/info/')
+        if len(parts) > 1:
+            cleaned = parts[1].split('?')[0].split('#')[0].strip()
+            return cleaned or None
+    return data
+
+
 def anggota_to_dict(a, include_lokasi=True):
     """Helper to convert Anggota ORM object to template-compatible dict"""
     d = {
@@ -196,7 +217,8 @@ def anggota_to_dict(a, include_lokasi=True):
         'pangkat': a.pangkat, 'satuan': a.satuan, 'jabatan': a.jabatan,
         'jurusan': a.jurusan, 'foto': a.foto, 'saldo': a.saldo,
         'status_kartu': a.status_kartu, 'nfc_uid': a.nfc_uid,
-        'qr_data': a.qr_data, 'tempat_lahir': a.tempat_lahir,
+        'qr_data': a.qr_data, 'mili_id': a.mili_id,
+        'tempat_lahir': a.tempat_lahir,
         'tanggal_lahir': a.tanggal_lahir.strftime('%d %B %Y') if a.tanggal_lahir else '',
         'golongan_darah': a.golongan_darah, 'agama': a.agama,
         'alamat': a.alamat, 'no_telepon': a.no_telepon,
@@ -347,6 +369,8 @@ def register_routes(app):
                     count += 1
                     kartu_id = f"KP-{year}-{count:03d}"
 
+                mili_raw = request.form.get('mili_id', '').strip()
+                qr_input = request.form.get('qr_data', '').strip()
                 anggota = Anggota(
                     kartu_id=kartu_id, nrp=nrp,
                     nama=request.form.get('nama', '').strip(),
@@ -361,7 +385,9 @@ def register_routes(app):
                     alamat=request.form.get('alamat', '').strip(),
                     no_telepon=request.form.get('no_telepon', '').strip(),
                     nfc_uid=request.form.get('nfc_uid', '').strip() or None,
-                    qr_data=kartu_id, saldo=0, status_kartu='Aktif',
+                    mili_id=extract_mili_id(mili_raw),
+                    qr_data=qr_input or kartu_id,
+                    saldo=0, status_kartu='Aktif',
                 )
                 db.session.add(anggota)
                 db.session.commit()
@@ -394,7 +420,13 @@ def register_routes(app):
                 a.agama = request.form.get('agama', a.agama).strip()
                 a.alamat = request.form.get('alamat', a.alamat).strip()
                 a.no_telepon = request.form.get('no_telepon', a.no_telepon or '').strip()
-                a.nfc_uid = request.form.get('nfc_uid', a.nfc_uid or '').strip() or a.nfc_uid
+                a.nfc_uid = request.form.get('nfc_uid', a.nfc_uid or '').strip() or None
+                # MiLi ID: accept URL or raw ID. Empty string means "clear it".
+                mili_raw = request.form.get('mili_id', '').strip()
+                a.mili_id = extract_mili_id(mili_raw) if mili_raw else None
+                # QR data: if empty, fall back to kartu_id
+                qr_input = request.form.get('qr_data', '').strip()
+                a.qr_data = qr_input or a.kartu_id
                 a.status_kartu = request.form.get('status_kartu', a.status_kartu)
                 db.session.commit()
                 flash('Data anggota berhasil diperbarui!', 'success')

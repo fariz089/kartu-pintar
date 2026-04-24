@@ -316,6 +316,7 @@
                     data-status="{{ a.status_kartu }}"
                     data-nfc="{{ a.nfc_uid or '' }}"
                     data-qr="{{ a.qr_data or a.id }}"
+                    data-mili="{{ a.mili_id or '' }}"
                 >
                     {{ a.pangkat }} {{ a.nama }} ({{ a.id }})
                 </option>
@@ -410,7 +411,17 @@ function createCardFront(data) {
 
 function createCardBack(data) {
     const qrId = 'qr-' + data.id.replace(/[^a-zA-Z0-9]/g, '_') + '-' + Math.random().toString(36).substr(2,4);
-    const scanUrl = `${DOMAIN}/scan/result/${data.qr || data.id}`;
+
+    // URL yang di-encode ke dalam QR:
+    // - Kalau anggota sudah punya MiLi Card ID → pakai URL MiLi (bisa di-scan MiLi app)
+    // - Kalau belum → fallback ke URL internal SmartCard
+    const qrUrl = data.mili
+        ? `https://micard.mymili.com/info/${data.mili}`
+        : `${DOMAIN}/scan/result/${data.qr || data.id}`;
+
+    const qrLabel = data.mili
+        ? 'Scan dengan MiLi app atau kamera'
+        : 'Scan untuk verifikasi identitas';
 
     return `
     <div class="kartu kartu-belakang">
@@ -419,8 +430,8 @@ function createCardBack(data) {
             <small>Politeknik Angkatan Darat</small>
         </div>
         <div class="qr-area">
-            <canvas id="${qrId}" width="120" height="120"></canvas>
-            <div class="qr-label">Scan untuk verifikasi identitas</div>
+            <canvas id="${qrId}" width="120" height="120" data-qr-url="${qrUrl}"></canvas>
+            <div class="qr-label">${qrLabel}</div>
         </div>
         <div class="back-info">
             <div class="back-info-row">
@@ -456,6 +467,7 @@ function getSelectedData() {
         status: opt.dataset.status,
         nfc: opt.dataset.nfc,
         qr: opt.dataset.qr,
+        mili: opt.dataset.mili,
     };
 }
 
@@ -463,12 +475,10 @@ function renderQRCodes() {
     // Generate all QR codes after DOM is updated
     setTimeout(() => {
         document.querySelectorAll('.qr-area canvas').forEach(canvas => {
-            const id = canvas.id;
-            // Extract kartu_id from the card's back-info
-            const card = canvas.closest('.kartu-belakang');
-            const idSpan = card.querySelector('.back-info-row span[style*="monospace"][style*="700"]');
-            const kartuId = idSpan ? idSpan.textContent.trim() : '';
-            const scanUrl = `${DOMAIN}/scan/result/${kartuId}`;
+            // URL yang di-encode sudah disimpan di data-qr-url oleh createCardBack
+            // (lebih reliable daripada parse dari DOM span).
+            const scanUrl = canvas.dataset.qrUrl;
+            if (!scanUrl) return;
 
             QRCode.toCanvas(canvas, scanUrl, {
                 width: 120,
@@ -532,6 +542,7 @@ function generateAllCards() {
             status: opt.dataset.status,
             nfc: opt.dataset.nfc,
             qr: opt.dataset.qr,
+            mili: opt.dataset.mili,
         };
 
         html += `

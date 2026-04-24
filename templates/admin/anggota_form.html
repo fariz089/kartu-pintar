@@ -79,7 +79,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Tanggal Lahir</label>
-                            <input type="date" name="tanggal_lahir" class="form-input">
+                            <input type="date" name="tanggal_lahir" class="form-input" value="{{ anggota.tanggal_lahir if anggota else '' }}">
                         </div>
                     </div>
                     <div class="form-row">
@@ -102,6 +102,12 @@
                             </select>
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">No. Telepon</label>
+                            <input type="text" name="no_telepon" class="form-input" value="{{ anggota.no_telepon if anggota else '' }}" placeholder="08xxxxxxxxxx">
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Alamat</label>
                         <textarea name="alamat" class="form-textarea" placeholder="Alamat lengkap">{{ anggota.alamat if anggota else '' }}</textarea>
@@ -115,15 +121,39 @@
                     </h3>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label">
+                                MiLi Card ID
+                                <small style="color: var(--text-secondary); font-weight: normal;">(URL atau ID saja)</small>
+                            </label>
+                            <input type="text" name="mili_id" class="form-input"
+                                value="{{ anggota.mili_id if anggota else '' }}"
+                                placeholder="https://micard.mymili.com/info/... atau FZDc3ImYoVWNm5kNwUTT5IjM">
+                            <small style="color: var(--text-secondary); font-size: 12px;">
+                                Boleh paste URL lengkap MiLi — sistem akan otomatis ekstrak ID-nya.
+                            </small>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label">NFC UID</label>
                             <input type="text" name="nfc_uid" class="form-input" value="{{ anggota.nfc_uid if anggota else '' }}" placeholder="UID dari kartu NFC">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                QR Data
+                                <small style="color: var(--text-secondary); font-weight: normal;">(kosongkan untuk pakai Kartu ID)</small>
+                            </label>
+                            <input type="text" name="qr_data" class="form-input"
+                                value="{{ anggota.qr_data if anggota else '' }}"
+                                placeholder="Default: Kartu ID">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Status Kartu</label>
                             <select name="status_kartu" class="form-select">
                                 <option value="Aktif" {% if anggota and anggota.status_kartu == 'Aktif' %}selected{% endif %}>Aktif</option>
                                 <option value="Hilang" {% if anggota and anggota.status_kartu == 'Hilang' %}selected{% endif %}>Hilang</option>
-                                <option value="Nonaktif">Nonaktif</option>
+                                <option value="Nonaktif" {% if anggota and anggota.status_kartu == 'Nonaktif' %}selected{% endif %}>Nonaktif</option>
+                                <option value="Diblokir" {% if anggota and anggota.status_kartu == 'Diblokir' %}selected{% endif %}>Diblokir</option>
                             </select>
                         </div>
                     </div>
