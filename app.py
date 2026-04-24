@@ -696,6 +696,40 @@ def register_routes(app):
         anggota_data = [anggota_to_dict(a, include_lokasi=False) for a in anggota_raw]
         return render_template('cetak_kartu.html', anggota_data=anggota_data)
 
+    # --- QR CODE GENERATOR (SVG) ---
+    # Server-side QR generation. Dipakai oleh cetak_kartu.html via <img src="...">.
+    # Tidak tergantung CDN JavaScript mana pun.
+
+    @app.route('/api/qrcode')
+    def api_qrcode():
+        import io
+        try:
+            import segno
+        except ImportError:
+            return ('segno library belum terinstall. '
+                    'Jalankan: pip install segno', 500)
+
+        data = request.args.get('data', '').strip()
+        if not data:
+            return 'Parameter "data" wajib diisi', 400
+        if len(data) > 500:
+            return 'Data terlalu panjang (max 500 char)', 400
+
+        # Generate QR → SVG (vector, crisp saat dicetak)
+        try:
+            qr = segno.make(data, error='m')
+        except Exception as e:
+            return f'Gagal generate QR: {e}', 500
+
+        buf = io.BytesIO()
+        qr.save(buf, kind='svg', scale=1, border=1,
+                dark='#1a2332', light='#ffffff', xmldecl=False, svgns=True)
+        svg = buf.getvalue()
+
+        from flask import Response
+        return Response(svg, mimetype='image/svg+xml',
+                        headers={'Cache-Control': 'public, max-age=3600'})
+
     # --- FINDMY TRACKER MANAGEMENT (Admin only) ---
 
     @app.route('/findmy-trackers')

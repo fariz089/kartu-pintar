@@ -197,7 +197,8 @@
         padding: 3mm;
     }
     .kartu-belakang .qr-area canvas,
-    .kartu-belakang .qr-area img {
+    .kartu-belakang .qr-area img,
+    .kartu-belakang .qr-area .qr-image {
         width: 30mm !important;
         height: 30mm !important;
     }
@@ -361,8 +362,7 @@
     </div>
 </div>
 
-<!-- QR Code Library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- QR Code di-generate server-side via /api/qrcode. Zero JS dependency. -->
 
 <script>
 const DOMAIN = 'http://smartcard.poltekkad.my.id';
@@ -409,15 +409,7 @@ function createCardFront(data) {
     </div>`;
 }
 
-// Global map: canvas ID → URL untuk di-encode ke QR.
-// Pakai global map (bukan HTML data-attribute) supaya URL yang
-// mengandung karakter special (&, =, :, /) tidak kena masalah
-// HTML attribute escaping.
-window.__qrUrls = window.__qrUrls || {};
-
 function createCardBack(data) {
-    const qrId = 'qr-' + data.id.replace(/[^a-zA-Z0-9]/g, '_') + '-' + Math.random().toString(36).substr(2,4);
-
     // URL yang di-encode ke dalam QR:
     // - Kalau anggota sudah punya MiLi Card ID → pakai URL MiLi (bisa di-scan MiLi app)
     // - Kalau belum → fallback ke URL internal SmartCard
@@ -430,8 +422,9 @@ function createCardBack(data) {
         ? 'Scan dengan MiLi app atau kamera'
         : 'Scan untuk verifikasi identitas';
 
-    // Simpan URL di global map (akan dibaca oleh renderQRCodes)
-    window.__qrUrls[qrId] = qrUrl;
+    // QR di-generate server-side (endpoint /api/qrcode return SVG).
+    // Keuntungan: vector (crisp saat print), tidak tergantung CDN library JS.
+    const qrImgSrc = `/api/qrcode?data=${encodeURIComponent(qrUrl)}`;
 
     return `
     <div class="kartu kartu-belakang">
@@ -440,7 +433,7 @@ function createCardBack(data) {
             <small>Politeknik Angkatan Darat</small>
         </div>
         <div class="qr-area">
-            <canvas id="${qrId}" width="120" height="120"></canvas>
+            <img src="${qrImgSrc}" alt="QR Code" class="qr-image">
             <div class="qr-label">${qrLabel}</div>
         </div>
         <div class="back-info">
@@ -481,45 +474,6 @@ function getSelectedData() {
     };
 }
 
-function renderQRCodes() {
-    // Check QRCode library loaded; retry kalau belum
-    if (typeof QRCode === 'undefined' || typeof QRCode.toCanvas !== 'function') {
-        console.error('[renderQRCodes] QRCode library belum loaded, retry...');
-        setTimeout(renderQRCodes, 200);
-        return;
-    }
-
-    const canvases = document.querySelectorAll('.qr-area canvas');
-    console.log(`[renderQRCodes] Ditemukan ${canvases.length} canvas`);
-
-    canvases.forEach(canvas => {
-        const scanUrl = window.__qrUrls && window.__qrUrls[canvas.id];
-        if (!scanUrl) {
-            console.warn('[renderQRCodes] Tidak ada URL untuk canvas', canvas.id);
-            return;
-        }
-
-        console.log(`[renderQRCodes] Render ${canvas.id} -> ${scanUrl}`);
-
-        // Reset canvas dulu (antisipasi canvas sudah pernah di-render sebelumnya)
-        canvas.width = 120;
-        canvas.height = 120;
-
-        QRCode.toCanvas(canvas, scanUrl, {
-            width: 120,
-            margin: 1,
-            color: { dark: '#1a2332', light: '#ffffff' },
-            errorCorrectionLevel: 'M',
-        }, function (err) {
-            if (err) {
-                console.error('[QRCode] Gagal render', canvas.id, err);
-            } else {
-                console.log('[QRCode] Berhasil render', canvas.id);
-            }
-        });
-    });
-}
-
 function generatePreview() {
     const data = getSelectedData();
     if (!data) {
@@ -546,7 +500,7 @@ function generatePreview() {
     }
 
     area.innerHTML = html;
-    renderQRCodes();
+    // QR di-render otomatis oleh browser saat load <img src="/api/qrcode?...">
 }
 
 function generateAllCards() {
@@ -594,7 +548,7 @@ function generateAllCards() {
     }
 
     area.innerHTML = html;
-    renderQRCodes();
+    // QR di-render otomatis oleh browser saat load <img src="/api/qrcode?...">
 }
 </script>
 {% endblock %}
