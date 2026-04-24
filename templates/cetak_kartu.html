@@ -409,19 +409,29 @@ function createCardFront(data) {
     </div>`;
 }
 
+// Global map: canvas ID → URL untuk di-encode ke QR.
+// Pakai global map (bukan HTML data-attribute) supaya URL yang
+// mengandung karakter special (&, =, :, /) tidak kena masalah
+// HTML attribute escaping.
+window.__qrUrls = window.__qrUrls || {};
+
 function createCardBack(data) {
     const qrId = 'qr-' + data.id.replace(/[^a-zA-Z0-9]/g, '_') + '-' + Math.random().toString(36).substr(2,4);
 
     // URL yang di-encode ke dalam QR:
     // - Kalau anggota sudah punya MiLi Card ID → pakai URL MiLi (bisa di-scan MiLi app)
     // - Kalau belum → fallback ke URL internal SmartCard
-    const qrUrl = data.mili
-        ? `https://micard.mymili.com/info/${data.mili}`
+    const hasMili = data.mili && String(data.mili).trim().length > 0;
+    const qrUrl = hasMili
+        ? `https://micard.mymili.com/info/${String(data.mili).trim()}`
         : `${DOMAIN}/scan/result/${data.qr || data.id}`;
 
-    const qrLabel = data.mili
+    const qrLabel = hasMili
         ? 'Scan dengan MiLi app atau kamera'
         : 'Scan untuk verifikasi identitas';
+
+    // Simpan URL di global map (akan dibaca oleh renderQRCodes)
+    window.__qrUrls[qrId] = qrUrl;
 
     return `
     <div class="kartu kartu-belakang">
@@ -430,7 +440,7 @@ function createCardBack(data) {
             <small>Politeknik Angkatan Darat</small>
         </div>
         <div class="qr-area">
-            <canvas id="${qrId}" width="120" height="120" data-qr-url="${qrUrl}"></canvas>
+            <canvas id="${qrId}" width="120" height="120"></canvas>
             <div class="qr-label">${qrLabel}</div>
         </div>
         <div class="back-info">
@@ -472,22 +482,42 @@ function getSelectedData() {
 }
 
 function renderQRCodes() {
-    // Generate all QR codes after DOM is updated
-    setTimeout(() => {
-        document.querySelectorAll('.qr-area canvas').forEach(canvas => {
-            // URL yang di-encode sudah disimpan di data-qr-url oleh createCardBack
-            // (lebih reliable daripada parse dari DOM span).
-            const scanUrl = canvas.dataset.qrUrl;
-            if (!scanUrl) return;
+    // Check QRCode library loaded; retry kalau belum
+    if (typeof QRCode === 'undefined' || typeof QRCode.toCanvas !== 'function') {
+        console.error('[renderQRCodes] QRCode library belum loaded, retry...');
+        setTimeout(renderQRCodes, 200);
+        return;
+    }
 
-            QRCode.toCanvas(canvas, scanUrl, {
-                width: 120,
-                margin: 1,
-                color: { dark: '#1a2332', light: '#ffffff' },
-                errorCorrectionLevel: 'M',
-            });
+    const canvases = document.querySelectorAll('.qr-area canvas');
+    console.log(`[renderQRCodes] Ditemukan ${canvases.length} canvas`);
+
+    canvases.forEach(canvas => {
+        const scanUrl = window.__qrUrls && window.__qrUrls[canvas.id];
+        if (!scanUrl) {
+            console.warn('[renderQRCodes] Tidak ada URL untuk canvas', canvas.id);
+            return;
+        }
+
+        console.log(`[renderQRCodes] Render ${canvas.id} -> ${scanUrl}`);
+
+        // Reset canvas dulu (antisipasi canvas sudah pernah di-render sebelumnya)
+        canvas.width = 120;
+        canvas.height = 120;
+
+        QRCode.toCanvas(canvas, scanUrl, {
+            width: 120,
+            margin: 1,
+            color: { dark: '#1a2332', light: '#ffffff' },
+            errorCorrectionLevel: 'M',
+        }, function (err) {
+            if (err) {
+                console.error('[QRCode] Gagal render', canvas.id, err);
+            } else {
+                console.log('[QRCode] Berhasil render', canvas.id);
+            }
         });
-    }, 100);
+    });
 }
 
 function generatePreview() {
