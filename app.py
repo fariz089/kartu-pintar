@@ -1344,9 +1344,19 @@ def register_api_routes(app):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
             return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
-        history = LokasiHistory.query.filter_by(anggota_id=a.id).order_by(LokasiHistory.waktu.desc()).limit(50).all()
+        try:
+            limit = int(request.args.get('limit', 50))
+            limit = max(1, min(limit, 500))  # clamp 1..500
+        except (TypeError, ValueError):
+            limit = 50
+        history = LokasiHistory.query.filter_by(anggota_id=a.id).order_by(LokasiHistory.waktu.desc()).limit(limit).all()
         return jsonify({'success': True, 'data': {
-            'anggota': {'kartu_id': a.kartu_id, 'nama': a.nama, 'status_kartu': a.status_kartu},
+            'anggota': {
+                'kartu_id': a.kartu_id,
+                'nama': a.nama,
+                'pangkat': a.pangkat,
+                'status_kartu': a.status_kartu,
+            },
             'lokasi_terakhir': {
                 'lat': a.lokasi_lat, 'lng': a.lokasi_lng, 'lokasi': a.lokasi_nama,
                 'waktu': a.lokasi_waktu.strftime('%Y-%m-%d %H:%M:%S') if a.lokasi_waktu else None,
