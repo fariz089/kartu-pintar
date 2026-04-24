@@ -210,6 +210,52 @@ def extract_mili_id(raw_data):
     return data
 
 
+ALLOWED_FOTO_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+DEFAULT_FOTO_PATH = '/static/img/avatar-default.svg'
+
+
+def save_foto_upload(file_storage, kartu_id, old_foto_path=None):
+    """Simpan file foto yang di-upload via form, return path relatif untuk DB.
+
+    - Validasi ekstensi (jpg, jpeg, png, webp).
+    - Simpan ke UPLOAD_FOLDER dengan nama unik: <kartu_id>_<uuid>.<ext>
+    - Kalau ada old_foto_path dan bukan default avatar, hapus file lama.
+    - Return None kalau file tidak valid/kosong.
+    """
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+
+    if not file_storage or not file_storage.filename:
+        return None
+
+    filename = secure_filename(file_storage.filename)
+    if '.' not in filename:
+        raise ValueError('Nama file tidak valid (tidak ada ekstensi)')
+    ext = filename.rsplit('.', 1)[1].lower()
+    if ext not in ALLOWED_FOTO_EXTENSIONS:
+        raise ValueError(f'Ekstensi tidak diizinkan. Hanya: {", ".join(sorted(ALLOWED_FOTO_EXTENSIONS))}')
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    new_name = f'{kartu_id}_{uuid.uuid4().hex[:8]}.{ext}'
+    new_path = os.path.join(upload_folder, new_name)
+    file_storage.save(new_path)
+
+    # Hapus foto lama kalau bukan default avatar
+    if old_foto_path and old_foto_path != DEFAULT_FOTO_PATH:
+        try:
+            if old_foto_path.startswith('/static/uploads/'):
+                old_name = old_foto_path.rsplit('/', 1)[-1]
+                old_full = os.path.join(upload_folder, old_name)
+                if os.path.exists(old_full):
+                    os.remove(old_full)
+        except Exception:
+            pass  # Ignore delete errors
+
+    return f'/static/uploads/{new_name}'
+
+
 def anggota_to_dict(a, include_lokasi=True):
     """Helper to convert Anggota ORM object to template-compatible dict"""
     d = {
@@ -371,6 +417,19 @@ def register_routes(app):
 
                 mili_raw = request.form.get('mili_id', '').strip()
                 qr_input = request.form.get('qr_data', '').strip()
+
+                # Handle foto upload (optional)
+                foto_path = DEFAULT_FOTO_PATH
+                foto_file = request.files.get('foto')
+                if foto_file and foto_file.filename:
+                    try:
+                        uploaded = save_foto_upload(foto_file, kartu_id, None)
+                        if uploaded:
+                            foto_path = uploaded
+                    except ValueError as ve:
+                        flash(f'Foto: {ve}', 'danger')
+                        return render_template('admin/anggota_form.html', mode='tambah')
+
                 anggota = Anggota(
                     kartu_id=kartu_id, nrp=nrp,
                     nama=request.form.get('nama', '').strip(),
@@ -387,6 +446,7 @@ def register_routes(app):
                     nfc_uid=request.form.get('nfc_uid', '').strip() or None,
                     mili_id=extract_mili_id(mili_raw),
                     qr_data=qr_input or kartu_id,
+                    foto=foto_path,
                     saldo=0, status_kartu='Aktif',
                 )
                 db.session.add(anggota)
@@ -428,6 +488,19 @@ def register_routes(app):
                 qr_input = request.form.get('qr_data', '').strip()
                 a.qr_data = qr_input or a.kartu_id
                 a.status_kartu = request.form.get('status_kartu', a.status_kartu)
+
+                # Handle foto upload (optional - kalau user upload foto baru)
+                foto_file = request.files.get('foto')
+                if foto_file and foto_file.filename:
+                    try:
+                        uploaded = save_foto_upload(foto_file, a.kartu_id, a.foto)
+                        if uploaded:
+                            a.foto = uploaded
+                    except ValueError as ve:
+                        flash(f'Foto: {ve}', 'danger')
+                        db.session.rollback()
+                        return redirect(url_for('anggota_edit', anggota_id=anggota_id))
+
                 db.session.commit()
                 flash('Data anggota berhasil diperbarui!', 'success')
                 return redirect(url_for('anggota_detail', anggota_id=anggota_id))

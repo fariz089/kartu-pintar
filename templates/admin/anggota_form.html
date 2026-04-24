@@ -19,7 +19,7 @@
             </h2>
         </div>
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <!-- Section: Identitas -->
                 <div style="margin-bottom: 24px;">
                     <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
@@ -114,6 +114,29 @@
                     </div>
                 </div>
 
+                <!-- Section: Foto -->
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                        FOTO ANGGOTA
+                    </h3>
+                    <div style="display: flex; gap: 16px; align-items: flex-start;">
+                        <div style="width: 120px; height: 150px; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: var(--bg-input, #1a1a1a); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <img id="fotoPreview"
+                                 src="{{ anggota.foto if anggota and anggota.foto else '/static/img/avatar-default.svg' }}"
+                                 alt="Preview foto"
+                                 style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label class="form-label">Upload Foto {% if mode == 'edit' %}(kosongkan kalau tidak ingin ganti){% endif %}</label>
+                            <input type="file" name="foto" id="fotoInput" class="form-input" accept="image/jpeg,image/jpg,image/png,image/webp"
+                                   onchange="previewFoto(event)">
+                            <small style="color: var(--text-secondary); font-size: 12px; display: block; margin-top: 6px;">
+                                Format: JPG, PNG, atau WEBP. Max 5MB. Disarankan rasio potret (3:4).
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Section: Smart Card -->
                 <div style="margin-bottom: 24px;">
                     <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
@@ -176,4 +199,24 @@
         </div>
     </div>
 </div>
+
+<script>
+function previewFoto(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    // Validasi size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Ukuran file maksimal 5MB');
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('fotoPreview').src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+</script>
 {% endblock %}
