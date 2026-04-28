@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import uuid
+import json
 
 db = SQLAlchemy()
 
@@ -96,12 +97,83 @@ class Anggota(db.Model):
     lokasi_nama = db.Column(db.String(200), nullable=True)
     lokasi_waktu = db.Column(db.DateTime, nullable=True)
 
+    # ============================================================
+    # RIWAYAT HIDUP FIELDS
+    # ============================================================
+    korp = db.Column(db.String(20), nullable=True)         # INF, CAV, ARH, dll
+    suku_bangsa = db.Column(db.String(50), nullable=True)
+    sumber_ba = db.Column(db.String(50), nullable=True)    # SECABA PK, AKMIL, dll
+    tmt_tni = db.Column(db.Date, nullable=True)            # Tanggal Mulai Tugas TNI
+    tmt_jabatan = db.Column(db.Date, nullable=True)        # TMT jabatan saat ini
+
+    # Keluarga
+    status_pernikahan = db.Column(db.String(20), nullable=True)
+    nama_pasangan = db.Column(db.String(100), nullable=True)
+    jml_anak = db.Column(db.Integer, default=0)
+    alamat_tinggal = db.Column(db.Text, nullable=True)
+    nama_ayah = db.Column(db.String(100), nullable=True)
+    nama_ibu = db.Column(db.String(100), nullable=True)
+    alamat_orang_tua = db.Column(db.Text, nullable=True)
+
+    # Riwayat dalam format JSON (TEXT di MySQL)
+    riwayat_pendidikan_umum = db.Column(db.Text, nullable=True)    # [{no, jenis, tahun, nama, prestasi}]
+    riwayat_pendidikan_militer = db.Column(db.Text, nullable=True)  # [{no, jenis, tahun, prestasi}]
+    riwayat_penugasan = db.Column(db.Text, nullable=True)           # [{no, nama_operasi, tahun, prestasi}]
+    riwayat_kepangkatan = db.Column(db.Text, nullable=True)         # [{no, pangkat, tmt, nomor_kep}]
+    riwayat_jabatan = db.Column(db.Text, nullable=True)             # [{no, jabatan, tmt}]
+    riwayat_anak = db.Column(db.Text, nullable=True)                # [{nama, tgl_lahir}]
+    kemampuan_bahasa = db.Column(db.Text, nullable=True)            # [{bahasa, tingkat}]
+    tanda_jasa = db.Column(db.Text, nullable=True)                  # [{nama}]
+    penugasan_luar_negeri = db.Column(db.Text, nullable=True)       # [{macam_tugas, tahun, negara, prestasi}]
+    riwayat_prestasi = db.Column(db.Text, nullable=True)            # [{kegiatan, tahun, tempat, deskripsi, kep}]
+
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
     # Relationships
     transaksi = db.relationship('Transaksi', backref='anggota', lazy='dynamic', order_by='Transaksi.created_at.desc()')
     lokasi_history = db.relationship('LokasiHistory', backref='anggota', lazy='dynamic', order_by='LokasiHistory.waktu.desc()')
+
+    def _get_json(self, field):
+        """Helper to safely parse JSON text field"""
+        val = getattr(self, field)
+        if not val:
+            return []
+        try:
+            return json.loads(val)
+        except Exception:
+            return []
+
+    def _set_json(self, field, value):
+        """Helper to safely set JSON text field"""
+        setattr(self, field, json.dumps(value, ensure_ascii=False) if value else None)
+
+    def get_riwayat_hidup(self):
+        """Returns complete riwayat hidup dict"""
+        return {
+            'korp': self.korp,
+            'suku_bangsa': self.suku_bangsa,
+            'sumber_ba': self.sumber_ba,
+            'tmt_tni': self.tmt_tni.strftime('%Y-%m-%d') if self.tmt_tni else None,
+            'tmt_jabatan': self.tmt_jabatan.strftime('%Y-%m-%d') if self.tmt_jabatan else None,
+            'status_pernikahan': self.status_pernikahan,
+            'nama_pasangan': self.nama_pasangan,
+            'jml_anak': self.jml_anak or 0,
+            'alamat_tinggal': self.alamat_tinggal,
+            'nama_ayah': self.nama_ayah,
+            'nama_ibu': self.nama_ibu,
+            'alamat_orang_tua': self.alamat_orang_tua,
+            'riwayat_pendidikan_umum': self._get_json('riwayat_pendidikan_umum'),
+            'riwayat_pendidikan_militer': self._get_json('riwayat_pendidikan_militer'),
+            'riwayat_penugasan': self._get_json('riwayat_penugasan'),
+            'riwayat_kepangkatan': self._get_json('riwayat_kepangkatan'),
+            'riwayat_jabatan': self._get_json('riwayat_jabatan'),
+            'riwayat_anak': self._get_json('riwayat_anak'),
+            'kemampuan_bahasa': self._get_json('kemampuan_bahasa'),
+            'tanda_jasa': self._get_json('tanda_jasa'),
+            'penugasan_luar_negeri': self._get_json('penugasan_luar_negeri'),
+            'riwayat_prestasi': self._get_json('riwayat_prestasi'),
+        }
 
     def to_dict(self, include_saldo=True):
         data = {

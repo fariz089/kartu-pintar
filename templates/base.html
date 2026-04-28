@@ -111,6 +111,13 @@
                     <span>Cetak Kartu</span>
                 </a>
             </div>
+            <div class="nav-section">
+                <span class="nav-section-title">ADMINISTRASI</span>
+                <a href="{{ url_for('user_list') }}" class="nav-link {% if 'user' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Manajemen User</span>
+                </a>
+            </div>
 
             {# === OPERATOR KANTIN: Payment + Sales history === #}
             {% elif role == 'operator_kantin' %}

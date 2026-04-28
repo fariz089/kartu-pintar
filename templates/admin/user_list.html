@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen User{% endblock %}
+{% block page_title %}Manajemen User{% endblock %}
+
+{% block content %}
+<div class="section-header">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ url_for('user_tambah') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus"></i> Tambah User
+        </a>
+        {% if anggota_tanpa_user %}
+        <form method="POST" action="{{ url_for('user_bulk_create') }}" onsubmit="return confirm('Buat akun untuk {{ anggota_tanpa_user|length }} anggota yang belum punya user?\nUsername & password = NRP masing-masing.')">
+            <button type="submit" class="btn btn-secondary btn-sm">
+                <i class="bi bi-lightning-fill"></i> Bulk Create ({{ anggota_tanpa_user|length }} anggota)
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    <form method="GET" style="display:flex;gap:8px;align-items:center;">
+        <input type="text" name="search" value="{{ search }}" class="form-input" style="width:220px;" placeholder="Cari username / nama...">
+        <button type="submit" class="btn btn-secondary btn-sm"><i class="bi bi-search"></i></button>
+    </form>
+</div>
+
+{% if anggota_tanpa_user %}
+<div style="background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.25);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--text-secondary);">
+    <i class="bi bi-exclamation-triangle-fill" style="color:var(--gold-400);"></i>
+    <strong style="color:var(--text-accent);">{{ anggota_tanpa_user|length }} anggota belum punya akun login:</strong>
+    {% for a in anggota_tanpa_user[:8] %}
+        <a href="{{ url_for('anggota_detail', anggota_id=a.kartu_id) }}" style="color:var(--text-accent);">{{ a.nama }}</a>{% if not loop.last %},{% endif %}
+    {% endfor %}{% if anggota_tanpa_user|length > 8 %}, ...{% endif %}
+    — Klik <strong>Bulk Create</strong> untuk buat semua sekaligus, atau klik nama anggota untuk buat satu per satu.
+</div>
+{% endif %}
+
+<!-- Users Table -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="bi bi-people-fill" style="color:var(--gold-400);"></i> Daftar User ({{ users|length }})</h2>
+    </div>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Nama</th>
+                    <th>Role</th>
+                    <th>Linked Anggota</th>
+                    <th>Status</th>
+                    <th>Dibuat</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <code style="font-size:13px;color:var(--text-accent);">{{ u.username }}</code>
+                    </td>
+                    <td>{{ u.nama }}</td>
+                    <td>
+                        <span class="badge" style="background:{% if u.role=='admin' %}rgba(231,76,60,0.2);color:#e74c3c{% elif u.role=='operator_kantin' %}rgba(52,152,219,0.2);color:#3498db{% else %}rgba(46,204,113,0.2);color:#2ecc71{% endif %};">
+                            {{ u.role }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if u.anggota %}
+                        <a href="{{ url_for('anggota_detail', anggota_id=u.anggota.kartu_id) }}" style="color:var(--text-accent);font-size:13px;">
+                            <i class="bi bi-person-badge"></i> {{ u.anggota.nama }}
+                            <small style="color:var(--text-muted);">({{ u.anggota.kartu_id }})</small>
+                        </a>
+                        {% else %}
+                        <span style="color:var(--text-muted);font-size:12px;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700;background:{% if u.is_active %}rgba(46,204,113,0.15){% else %}rgba(231,76,60,0.15){% endif %};color:{% if u.is_active %}#2ecc71{% else %}#e74c3c{% endif %};">
+                            {{ 'Aktif' if u.is_active else 'Nonaktif' }}
+                        </span>
+                    </td>
+                    <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at|datetime_format }}</td>
+                    <td>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                            <a href="{{ url_for('user_edit', user_id=u.id) }}" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('user_toggle', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm" style="padding:3px 8px;font-size:11px;background:{% if u.is_active %}rgba(231,76,60,0.15){% else %}rgba(46,204,113,0.15){% endif %};border:1px solid {% if u.is_active %}rgba(231,76,60,0.3){% else %}rgba(46,204,113,0.3){% endif %};color:{% if u.is_active %}#e74c3c{% else %}#2ecc71{% endif %};" title="{{ 'Nonaktifkan' if u.is_active else 'Aktifkan' }}">
+                                    <i class="bi bi-{% if u.is_active %}person-dash{% else %}person-check{% endif %}"></i>
+                                </button>
+                            </form>
+                            <!-- Reset Password -->
+                            <button type="button" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;" title="Reset Password"
+                                onclick="showResetPw({{ u.id }}, '{{ u.username }}')">
+                                <i class="bi bi-key"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">
+                        {% if search %}Tidak ditemukan user dengan kata kunci "{{ search }}"{% else %}Belum ada user{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="modalResetPw" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card);border-radius:12px;padding:24px;width:100%;max-width:380px;margin:16px;border:1px solid var(--border-color);">
+        <h3 style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text-accent);margin-bottom:16px;letter-spacing:1px;">
+            <i class="bi bi-key-fill"></i> Reset Password — <span id="resetPwUsername"></span>
+        </h3>
+        <form method="POST" id="resetPwForm">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label class="form-label">Password Baru (min. 4 karakter)</label>
+                <input type="password" name="new_password" class="form-input" placeholder="Password baru" required minlength="4" autocomplete="new-password">
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modalResetPw').style.display='none'">Batal</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Reset</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showResetPw(userId, username) {
+    document.getElementById('resetPwUsername').textContent = username;
+    document.getElementById('resetPwForm').action = '/users/reset-password/' + userId;
+    document.getElementById('modalResetPw').style.display = 'flex';
+}
+</script>
+{% endblock %}

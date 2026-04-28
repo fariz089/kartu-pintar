@@ -10,213 +10,537 @@
     </a>
 </div>
 
-<div style="max-width: 800px;">
-    <div class="card">
-        <div class="card-header">
-            <h2>
-                <i class="bi bi-{% if mode == 'tambah' %}person-plus-fill{% else %}pencil-fill{% endif %}" style="color: var(--gold-400);"></i>
-                {% if mode == 'tambah' %}Form Pendaftaran Anggota{% else %}Edit Data {{ anggota.nama }}{% endif %}
-            </h2>
-        </div>
-        <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
-                <!-- Section: Identitas -->
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
-                        DATA IDENTITAS
-                    </h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Nama Lengkap</label>
-                            <input type="text" name="nama" class="form-input" value="{{ anggota.nama if anggota else '' }}" placeholder="Nama lengkap anggota" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">NRP</label>
-                            <input type="text" name="nrp" class="form-input" value="{{ anggota.nrp if anggota else '' }}" placeholder="Nomor Registrasi Pokok" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Pangkat</label>
-                            <select name="pangkat" class="form-select" required>
-                                <option value="">— Pilih Pangkat —</option>
-                                {% for p in ['Prajurit Dua', 'Prajurit Satu', 'Prajurit Kepala', 'Kopral Dua', 'Kopral Satu', 'Kopral Kepala', 'Sersan Dua', 'Sersan Satu', 'Sersan Kepala'] %}
-                                <option value="{{ p }}" {% if anggota and anggota.pangkat == p %}selected{% endif %}>{{ p }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Jabatan</label>
-                            <input type="text" name="jabatan" class="form-input" value="{{ anggota.jabatan if anggota else '' }}" placeholder="Jabatan" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Satuan</label>
-                            <input type="text" name="satuan" class="form-input" value="{{ anggota.satuan if anggota else 'Poltekad' }}" placeholder="Satuan">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Jurusan</label>
-                            <select name="jurusan" class="form-select">
-                                <option value="">— Pilih Jurusan —</option>
-                                {% for j in ['Teknik Elektronika', 'Teknik Mesin', 'Teknik Informatika'] %}
-                                <option value="{{ j }}" {% if anggota and anggota.jurusan == j %}selected{% endif %}>{{ j }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
+<style>
+.tab-nav { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 2px solid var(--border-color); flex-wrap: wrap; }
+.tab-btn { padding: 10px 18px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; }
+.tab-btn.active { color: var(--text-accent); border-bottom-color: var(--gold-400); }
+.tab-btn:hover { color: var(--text-primary); }
+.tab-panel { display: none; padding-top: 20px; }
+.tab-panel.active { display: block; }
+.rh-section { margin-bottom: 20px; }
+.rh-section-title { font-size: 13px; font-weight: 700; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); text-transform: uppercase; }
+.dynamic-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dynamic-table th { background: var(--bg-input, #1a1a1a); padding: 8px 10px; text-align: left; font-size: 11px; letter-spacing: .5px; color: var(--text-secondary); border: 1px solid var(--border-color); }
+.dynamic-table td { padding: 6px; border: 1px solid var(--border-color); }
+.dynamic-table td input { width: 100%; background: transparent; border: none; color: var(--text-primary); font-size: 13px; padding: 2px 4px; outline: none; }
+.dynamic-table td input:focus { background: var(--bg-input, #1a1a1a); border-radius: 3px; }
+.add-row-btn { font-size: 12px; padding: 5px 12px; margin-top: 6px; }
+.del-row-btn { background: none; border: none; color: #e74c3c; cursor: pointer; padding: 2px 6px; font-size: 14px; }
+</style>
 
-                <!-- Section: Data Pribadi -->
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
-                        DATA PRIBADI
-                    </h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Tempat Lahir</label>
-                            <input type="text" name="tempat_lahir" class="form-input" value="{{ anggota.tempat_lahir if anggota else '' }}" placeholder="Kota kelahiran">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Tanggal Lahir</label>
-                            <input type="date" name="tanggal_lahir" class="form-input" value="{{ anggota.tanggal_lahir if anggota else '' }}">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Golongan Darah</label>
-                            <select name="golongan_darah" class="form-select">
-                                <option value="">— Pilih —</option>
-                                {% for g in ['A', 'B', 'AB', 'O'] %}
-                                <option value="{{ g }}" {% if anggota and anggota.golongan_darah == g %}selected{% endif %}>{{ g }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Agama</label>
-                            <select name="agama" class="form-select">
-                                <option value="">— Pilih —</option>
-                                {% for ag in ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'] %}
-                                <option value="{{ ag }}" {% if anggota and anggota.agama == ag %}selected{% endif %}>{{ ag }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">No. Telepon</label>
-                            <input type="text" name="no_telepon" class="form-input" value="{{ anggota.no_telepon if anggota else '' }}" placeholder="08xxxxxxxxxx">
-                        </div>
+<form method="POST" enctype="multipart/form-data" id="anggotaForm">
+<div class="card" style="max-width: 900px;">
+    <div class="card-header">
+        <h2>
+            <i class="bi bi-{% if mode == 'tambah' %}person-plus-fill{% else %}pencil-fill{% endif %}" style="color: var(--gold-400);"></i>
+            {% if mode == 'tambah' %}Form Pendaftaran Anggota{% else %}Edit Data {{ anggota.nama }}{% endif %}
+        </h2>
+    </div>
+    <div class="card-body">
+
+        <div class="tab-nav">
+            <button type="button" class="tab-btn active" onclick="switchTab('identitas', this)"><i class="bi bi-person"></i> Identitas</button>
+            <button type="button" class="tab-btn" onclick="switchTab('riwayat-hidup', this)"><i class="bi bi-journal-text"></i> Riwayat Hidup</button>
+            <button type="button" class="tab-btn" onclick="switchTab('kartu', this)"><i class="bi bi-credit-card"></i> Smart Card</button>
+            <button type="button" class="tab-btn" onclick="switchTab('akun', this)"><i class="bi bi-shield-lock"></i> Akun Login</button>
+        </div>
+
+        <!-- ===== TAB: IDENTITAS ===== -->
+        <div id="tab-identitas" class="tab-panel active">
+            <div class="rh-section">
+                <div class="rh-section-title">Data Identitas</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Nama Lengkap *</label>
+                        <input type="text" name="nama" class="form-input" value="{{ anggota.nama if anggota else '' }}" placeholder="Nama lengkap" required>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Alamat</label>
-                        <textarea name="alamat" class="form-textarea" placeholder="Alamat lengkap">{{ anggota.alamat if anggota else '' }}</textarea>
+                        <label class="form-label">NRP *</label>
+                        <input type="text" name="nrp" class="form-input" value="{{ anggota.nrp if anggota else '' }}" placeholder="Nomor Registrasi Pokok" required {% if mode == 'edit' %}readonly{% endif %}>
                     </div>
                 </div>
-
-                <!-- Section: Foto -->
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
-                        FOTO ANGGOTA
-                    </h3>
-                    <div style="display: flex; gap: 16px; align-items: flex-start;">
-                        <div style="width: 120px; height: 150px; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: var(--bg-input, #1a1a1a); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                            <img id="fotoPreview"
-                                 src="{{ anggota.foto if anggota and anggota.foto else '/static/img/avatar-default.svg' }}"
-                                 alt="Preview foto"
-                                 style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label class="form-label">Upload Foto {% if mode == 'edit' %}(kosongkan kalau tidak ingin ganti){% endif %}</label>
-                            <input type="file" name="foto" id="fotoInput" class="form-input" accept="image/jpeg,image/jpg,image/png,image/webp"
-                                   onchange="previewFoto(event)">
-                            <small style="color: var(--text-secondary); font-size: 12px; display: block; margin-top: 6px;">
-                                Format: JPG, PNG, atau WEBP. Max 5MB. Disarankan rasio potret (3:4).
-                            </small>
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Pangkat *</label>
+                        <select name="pangkat" class="form-select" required>
+                            <option value="">— Pilih Pangkat —</option>
+                            {% for p in ['Taruna','Prajurit Dua','Prajurit Satu','Prajurit Kepala','Kopral Dua','Kopral Satu','Kopral Kepala','Sersan Dua','Sersan Satu','Sersan Kepala','Pembantu Letnan Dua','Pembantu Letnan Satu','Letnan Dua','Letnan Satu','Kapten','Mayor','Letnan Kolonel','Kolonel','Brigadir Jenderal','Mayor Jenderal','Letnan Jenderal','Jenderal'] %}
+                            <option value="{{ p }}" {% if anggota and anggota.pangkat == p %}selected{% endif %}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Korp</label>
+                        <select name="korp" class="form-select">
+                            <option value="">— Pilih —</option>
+                            {% for k in ['INF','CAV','ARH','ZI','HUB','PNB','CPL','CKM','CBA','CHB','CTP','CDP'] %}
+                            <option value="{{ k }}" {% if anggota and anggota.korp == k %}selected{% endif %}>{{ k }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
-
-                <!-- Section: Smart Card -->
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--text-accent); letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
-                        DATA SMART CARD
-                    </h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">
-                                MiLi Card ID
-                                <small style="color: var(--text-secondary); font-weight: normal;">(URL atau ID saja)</small>
-                            </label>
-                            <input type="text" name="mili_id" class="form-input"
-                                value="{{ anggota.mili_id if anggota else '' }}"
-                                placeholder="https://micard.mymili.com/info/... atau FZDc3ImYoVWNm5kNwUTT5IjM">
-                            <small style="color: var(--text-secondary); font-size: 12px;">
-                                Boleh paste URL lengkap MiLi — sistem akan otomatis ekstrak ID-nya.
-                            </small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">NFC UID</label>
-                            <input type="text" name="nfc_uid" class="form-input" value="{{ anggota.nfc_uid if anggota else '' }}" placeholder="UID dari kartu NFC">
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Jabatan</label>
+                        <input type="text" name="jabatan" class="form-input" value="{{ anggota.jabatan if anggota else '' }}" placeholder="Jabatan saat ini">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">TMT Jabatan</label>
+                        <input type="date" name="tmt_jabatan" class="form-input" value="{{ anggota.tmt_jabatan if anggota else '' }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Satuan</label>
+                        <input type="text" name="satuan" class="form-input" value="{{ anggota.satuan if anggota else 'Poltekad' }}" placeholder="Satuan">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Jurusan</label>
+                        <select name="jurusan" class="form-select">
+                            <option value="">— Pilih —</option>
+                            {% for j in ['Teknik Elektronika','Teknik Mesin','Teknik Informatika','Teknik Sipil','Teknik Persenjataan','Lainnya'] %}
+                            <option value="{{ j }}" {% if anggota and anggota.jurusan == j %}selected{% endif %}>{{ j }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Sumber BA</label>
+                        <input type="text" name="sumber_ba" class="form-input" value="{{ anggota.sumber_ba if anggota else '' }}" placeholder="SECABA PK, AKMIL, dll">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">TMT TNI</label>
+                        <input type="date" name="tmt_tni" class="form-input" value="{{ anggota.tmt_tni if anggota else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">Data Pribadi</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tempat Lahir</label>
+                        <input type="text" name="tempat_lahir" class="form-input" value="{{ anggota.tempat_lahir if anggota else '' }}" placeholder="Kota tempat lahir">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tanggal Lahir</label>
+                        <input type="date" name="tanggal_lahir" class="form-input" value="{{ anggota.tanggal_lahir if anggota else '' }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Golongan Darah</label>
+                        <select name="golongan_darah" class="form-select">
+                            <option value="">— Pilih —</option>
+                            {% for g in ['A','B','AB','O'] %}
+                            <option value="{{ g }}" {% if anggota and anggota.golongan_darah == g %}selected{% endif %}>{{ g }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Agama</label>
+                        <select name="agama" class="form-select">
+                            <option value="">— Pilih —</option>
+                            {% for ag in ['Islam','Kristen','Katolik','Hindu','Buddha','Konghucu'] %}
+                            <option value="{{ ag }}" {% if anggota and anggota.agama == ag %}selected{% endif %}>{{ ag }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Suku Bangsa</label>
+                        <input type="text" name="suku_bangsa" class="form-input" value="{{ anggota.suku_bangsa if anggota else '' }}" placeholder="Jawa, Sunda, Batak, dll">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">No. Telepon</label>
+                        <input type="text" name="no_telepon" class="form-input" value="{{ anggota.no_telepon if anggota else '' }}" placeholder="08xxxxxxxxxx">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alamat Tempat Tinggal</label>
+                    <textarea name="alamat" class="form-textarea" placeholder="Alamat lengkap">{{ anggota.alamat if anggota else '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">Foto Anggota</div>
+                <div style="display: flex; gap: 16px; align-items: flex-start;">
+                    <div style="width: 100px; height: 130px; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: var(--bg-input, #1a1a1a); flex-shrink: 0;">
+                        <img id="fotoPreview" src="{{ anggota.foto if anggota and anggota.foto else '/static/img/avatar-default.svg' }}" style="width:100%;height:100%;object-fit:cover;">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-label">Upload Foto {% if mode == 'edit' %}(kosongkan jika tidak ingin ganti){% endif %}</label>
+                        <input type="file" name="foto" id="fotoInput" class="form-input" accept="image/jpeg,image/jpg,image/png,image/webp" onchange="previewFoto(event)">
+                        <small style="color:var(--text-secondary);font-size:12px;">Format: JPG, PNG, WEBP. Max 5MB. Rasio potret (3:4) disarankan.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: RIWAYAT HIDUP ===== -->
+        <div id="tab-riwayat-hidup" class="tab-panel">
+
+            <div class="rh-section">
+                <div class="rh-section-title">II. Riwayat Pendidikan Umum</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Jenis</th><th width="80">Tahun</th><th>Nama Sekolah/Prodi</th><th>Prestasi</th><th width="30"></th></tr></thead>
+                <tbody id="body-pend-umum"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('pend-umum',['no','jenis','tahun','nama','prestasi'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_pendidikan_umum" id="data-pend-umum">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">II. Riwayat Pendidikan Militer</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Jenis Dikma/Diktuk</th><th width="80">Tahun</th><th>Prestasi</th><th width="30"></th></tr></thead>
+                <tbody id="body-pend-mil"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('pend-mil',['no','jenis','tahun','prestasi'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_pendidikan_militer" id="data-pend-mil">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">V. Riwayat Kepangkatan</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Pangkat</th><th width="120">TMT</th><th>Nomor Kep/Skep</th><th width="30"></th></tr></thead>
+                <tbody id="body-kepangkatan"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('kepangkatan',['no','pangkat','tmt','nomor_kep'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_kepangkatan" id="data-kepangkatan">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">VII. Riwayat Jabatan</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Jabatan</th><th width="120">TMT</th><th width="30"></th></tr></thead>
+                <tbody id="body-jabatan"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('jabatan',['no','jabatan','tmt'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_jabatan" id="data-jabatan">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">III. Riwayat Penugasan Operasi</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Nama Operasi</th><th width="80">Tahun</th><th>Prestasi</th><th width="30"></th></tr></thead>
+                <tbody id="body-penugasan"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('penugasan',['no','nama_operasi','tahun','prestasi'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_penugasan" id="data-penugasan">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">VI. Penugasan Luar Negeri</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Macam Tugas</th><th width="80">Tahun</th><th>Negara</th><th>Prestasi</th><th width="30"></th></tr></thead>
+                <tbody id="body-luar-negeri"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('luar-negeri',['no','macam_tugas','tahun','negara','prestasi'])">+ Tambah</button>
+                <input type="hidden" name="penugasan_luar_negeri" id="data-luar-negeri">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">IV. Tanda Jasa / Kehormatan</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Nama Tanda Kehormatan</th><th width="30"></th></tr></thead>
+                <tbody id="body-tanda-jasa"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('tanda-jasa',['no','nama'])">+ Tambah</button>
+                <input type="hidden" name="tanda_jasa" id="data-tanda-jasa">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">V. Kemampuan Bahasa</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Bahasa</th><th>Tingkat (Aktif/Pasif)</th><th width="30"></th></tr></thead>
+                <tbody id="body-bahasa"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('bahasa',['no','bahasa','tingkat'])">+ Tambah</button>
+                <input type="hidden" name="kemampuan_bahasa" id="data-bahasa">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">IX. Riwayat Prestasi</div>
+                <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Kegiatan</th><th width="80">Tahun</th><th>Tempat</th><th>Deskripsi</th><th>Kep/Piagam</th><th width="30"></th></tr></thead>
+                <tbody id="body-prestasi"></tbody></table>
+                <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('prestasi',['no','kegiatan','tahun','tempat','deskripsi','kep'])">+ Tambah</button>
+                <input type="hidden" name="riwayat_prestasi" id="data-prestasi">
+            </div>
+
+            <div class="rh-section">
+                <div class="rh-section-title">VIII. Data Keluarga</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Status Pernikahan</label>
+                        <select name="status_pernikahan" class="form-select">
+                            <option value="">— Pilih —</option>
+                            {% for s in ['Belum Kawin','Kawin','Cerai Hidup','Cerai Mati'] %}
+                            <option value="{{ s }}" {% if anggota and anggota.status_pernikahan == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nama Istri/Suami</label>
+                        <input type="text" name="nama_pasangan" class="form-input" value="{{ anggota.nama_pasangan if anggota else '' }}" placeholder="Nama lengkap">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Jumlah Anak</label>
+                        <input type="number" name="jml_anak" class="form-input" value="{{ anggota.jml_anak if anggota else 0 }}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alamat Tempat Tinggal (Asrama/Dinas)</label>
+                        <input type="text" name="alamat_tinggal" class="form-input" value="{{ anggota.alamat_tinggal if anggota else '' }}" placeholder="Asmil, dll">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Nama Ayah</label>
+                        <input type="text" name="nama_ayah" class="form-input" value="{{ anggota.nama_ayah if anggota else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nama Ibu</label>
+                        <input type="text" name="nama_ibu" class="form-input" value="{{ anggota.nama_ibu if anggota else '' }}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alamat Orang Tua</label>
+                    <textarea name="alamat_orang_tua" class="form-textarea">{{ anggota.alamat_orang_tua if anggota else '' }}</textarea>
+                </div>
+                <div style="margin-top:12px;">
+                    <div class="rh-section-title" style="margin-bottom:8px;">Data Anak</div>
+                    <table class="dynamic-table"><thead><tr><th width="30">#</th><th>Nama Anak</th><th width="140">Tanggal Lahir</th><th width="30"></th></tr></thead>
+                    <tbody id="body-anak"></tbody></table>
+                    <button type="button" class="btn btn-secondary btn-sm add-row-btn" onclick="addRow('anak',['no','nama','tgl_lahir'])">+ Tambah Anak</button>
+                    <input type="hidden" name="riwayat_anak" id="data-anak">
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TAB: SMART CARD ===== -->
+        <div id="tab-kartu" class="tab-panel">
+            <div class="rh-section">
+                <div class="rh-section-title">Data Smart Card</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">MiLi Card ID <small style="color:var(--text-secondary);">(URL atau ID)</small></label>
+                        <input type="text" name="mili_id" class="form-input" value="{{ anggota.mili_id if anggota else '' }}" placeholder="https://micard.mymili.com/info/...">
+                        <small style="color:var(--text-secondary);font-size:12px;">Paste URL lengkap — sistem otomatis ekstrak ID-nya.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">NFC UID</label>
+                        <input type="text" name="nfc_uid" class="form-input" value="{{ anggota.nfc_uid if anggota else '' }}" placeholder="UID dari kartu NFC">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">QR Data <small style="color:var(--text-secondary);">(kosong = Kartu ID)</small></label>
+                        <input type="text" name="qr_data" class="form-input" value="{{ anggota.qr_data if anggota else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status Kartu</label>
+                        <select name="status_kartu" class="form-select">
+                            {% for s in ['Aktif','Nonaktif','Hilang','Diblokir'] %}
+                            <option value="{{ s }}" {% if anggota and anggota.status_kartu == s %}selected{% elif not anggota and s == 'Aktif' %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                {% if mode == 'tambah' %}
+                <div class="form-group">
+                    <label class="form-label">Saldo Awal (Rp)</label>
+                    <input type="number" name="saldo" class="form-input" value="0" min="0" step="1000">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ===== TAB: AKUN LOGIN ===== -->
+        <div id="tab-akun" class="tab-panel">
+            <div class="rh-section">
+                <div class="rh-section-title">Akun Login untuk Aplikasi Mobile</div>
+
+                {% if mode == 'edit' and anggota and anggota.user_account and anggota.user_account.username %}
+                <div style="background:var(--bg-input,#1a1a1a);border:1px solid var(--border-color);border-radius:8px;padding:16px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <i class="bi bi-person-check-fill" style="color:#2ecc71;font-size:18px;"></i>
+                        <span style="font-weight:700;color:var(--text-accent);">Akun sudah ada</span>
+                        <span class="badge" style="background:{% if anggota.user_account.is_active %}#2ecc71{% else %}#e74c3c{% endif%;color:#000;">{{ 'Aktif' if anggota.user_account.is_active else 'Nonaktif' }}</span>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+                        Username: <strong style="color:var(--text-primary);">{{ anggota.user_account.username }}</strong> &nbsp;|&nbsp;
+                        Role: <strong style="color:var(--text-primary);">{{ anggota.user_account.role }}</strong>
+                    </p>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">
-                                QR Data
-                                <small style="color: var(--text-secondary); font-weight: normal;">(kosongkan untuk pakai Kartu ID)</small>
-                            </label>
-                            <input type="text" name="qr_data" class="form-input"
-                                value="{{ anggota.qr_data if anggota else '' }}"
-                                placeholder="Default: Kartu ID">
+                            <label class="form-label">Ganti Password <small style="color:var(--text-secondary);">(kosong = tidak ganti)</small></label>
+                            <input type="password" name="user_password" class="form-input" placeholder="Password baru" autocomplete="new-password">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Status Kartu</label>
-                            <select name="status_kartu" class="form-select">
-                                <option value="Aktif" {% if anggota and anggota.status_kartu == 'Aktif' %}selected{% endif %}>Aktif</option>
-                                <option value="Hilang" {% if anggota and anggota.status_kartu == 'Hilang' %}selected{% endif %}>Hilang</option>
-                                <option value="Nonaktif" {% if anggota and anggota.status_kartu == 'Nonaktif' %}selected{% endif %}>Nonaktif</option>
-                                <option value="Diblokir" {% if anggota and anggota.status_kartu == 'Diblokir' %}selected{% endif %}>Diblokir</option>
+                            <label class="form-label">Status Akun</label>
+                            <select name="user_is_active" class="form-select">
+                                <option value="1" {% if anggota.user_account.is_active %}selected{% endif %}>Aktif</option>
+                                <option value="0" {% if not anggota.user_account.is_active %}selected{% endif %}>Nonaktif</option>
                             </select>
                         </div>
                     </div>
-                    {% if mode == 'tambah' %}
-                    <div class="form-group">
-                        <label class="form-label">Saldo Awal</label>
-                        <input type="number" name="saldo" class="form-input" value="0" min="0" step="1000" placeholder="Saldo awal kartu">
+                </div>
+                {% else %}
+                <div style="background:var(--bg-input,#1a1a1a);border:1px solid var(--border-color);border-radius:8px;padding:16px;">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:14px;">
+                        <input type="checkbox" name="buat_user" value="1" id="chkBuatUser" onchange="toggleUserForm()" style="width:18px;height:18px;">
+                        <span style="font-size:14px;font-weight:600;color:var(--text-accent);">
+                            <i class="bi bi-person-plus"></i>
+                            Buat akun login untuk anggota ini
+                        </span>
+                    </label>
+                    <div id="userFormFields" style="display:none;">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Username <small style="color:var(--text-secondary);">(default: NRP)</small></label>
+                                <input type="text" name="user_username" class="form-input" placeholder="Kosong = otomatis dari NRP" autocomplete="username">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Password <small style="color:var(--text-secondary);">(default: NRP)</small></label>
+                                <input type="password" name="user_password" class="form-input" placeholder="Kosong = pakai NRP" autocomplete="new-password">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Role</label>
+                            <select name="user_role" class="form-select">
+                                <option value="user" selected>User (Anggota)</option>
+                                <option value="operator_kantin">Operator Kantin</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.2);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--text-secondary);margin-top:8px;">
+                            <i class="bi bi-info-circle" style="color:var(--gold-400);"></i>
+                            Anggota akan bisa login ke aplikasi mobile menggunakan username &amp; password ini.
+                            Jika dikosongkan, username dan password akan menggunakan NRP.
+                        </div>
                     </div>
-                    {% endif %}
                 </div>
-
-                <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                    <a href="{{ url_for('anggota_list') }}" class="btn btn-secondary">Batal</a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg"></i>
-                        {% if mode == 'tambah' %}Simpan Anggota{% else %}Update Data{% endif %}
-                    </button>
-                </div>
-            </form>
+                {% endif %}
+            </div>
         </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border-color);margin-top:8px;">
+            <a href="{{ url_for('anggota_list') }}" class="btn btn-secondary">Batal</a>
+            <button type="submit" class="btn btn-primary" onclick="syncAllTables()">
+                <i class="bi bi-check-lg"></i>
+                {% if mode == 'tambah' %}Simpan Anggota{% else %}Update Data{% endif %}
+            </button>
+        </div>
+
     </div>
 </div>
+</form>
 
 <script>
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+}
+
+function toggleUserForm() {
+    document.getElementById('userFormFields').style.display =
+        document.getElementById('chkBuatUser').checked ? 'block' : 'none';
+}
+
 function previewFoto(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-
-    // Validasi size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert('Ukuran file maksimal 5MB');
-        event.target.value = '';
-        return;
-    }
-
+    if (file.size > 5*1024*1024) { alert('Ukuran file maksimal 5MB'); event.target.value = ''; return; }
     const reader = new FileReader();
-    reader.onload = function(e) {
-        document.getElementById('fotoPreview').src = e.target.result;
-    };
+    reader.onload = e => document.getElementById('fotoPreview').src = e.target.result;
     reader.readAsDataURL(file);
 }
+
+// ---- Dynamic tables ----
+const tableData = {};
+
+function addRow(tId, fields) {
+    if (!tableData[tId]) tableData[tId] = [];
+    const obj = {};
+    fields.forEach(f => { obj[f] = f === 'no' ? tableData[tId].length + 1 : ''; });
+    tableData[tId].push(obj);
+    renderTable(tId, fields);
+}
+
+function delRow(tId, fields, idx) {
+    tableData[tId].splice(idx, 1);
+    tableData[tId].forEach((r, i) => { if ('no' in r) r.no = i + 1; });
+    renderTable(tId, fields);
+}
+
+function renderTable(tId, fields) {
+    const tbody = document.getElementById('body-' + tId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (tableData[tId] || []).forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        fields.forEach(f => {
+            const td = document.createElement('td');
+            if (f === 'no') {
+                td.textContent = idx + 1;
+                td.style.textAlign = 'center';
+            } else {
+                const inp = document.createElement('input');
+                inp.type = 'text'; inp.value = row[f] || ''; inp.placeholder = f;
+                inp.oninput = () => { tableData[tId][idx][f] = inp.value; };
+                td.appendChild(inp);
+            }
+            tr.appendChild(td);
+        });
+        const tdDel = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'del-row-btn';
+        btn.innerHTML = '<i class="bi bi-trash"></i>';
+        btn.onclick = () => delRow(tId, fields, idx);
+        tdDel.appendChild(btn); tr.appendChild(tdDel);
+        tbody.appendChild(tr);
+    });
+}
+
+function syncAllTables() {
+    const cfg = {
+        'pend-umum':    { name:'riwayat_pendidikan_umum',   fields:['jenis','tahun','nama','prestasi'] },
+        'pend-mil':     { name:'riwayat_pendidikan_militer', fields:['jenis','tahun','prestasi'] },
+        'kepangkatan':  { name:'riwayat_kepangkatan',        fields:['pangkat','tmt','nomor_kep'] },
+        'jabatan':      { name:'riwayat_jabatan',            fields:['jabatan','tmt'] },
+        'penugasan':    { name:'riwayat_penugasan',          fields:['nama_operasi','tahun','prestasi'] },
+        'luar-negeri':  { name:'penugasan_luar_negeri',      fields:['macam_tugas','tahun','negara','prestasi'] },
+        'tanda-jasa':   { name:'tanda_jasa',                 fields:['nama'] },
+        'bahasa':       { name:'kemampuan_bahasa',           fields:['bahasa','tingkat'] },
+        'prestasi':     { name:'riwayat_prestasi',           fields:['kegiatan','tahun','tempat','deskripsi','kep'] },
+        'anak':         { name:'riwayat_anak',               fields:['nama','tgl_lahir'] },
+    };
+    Object.entries(cfg).forEach(([tId, c]) => {
+        const data = (tableData[tId] || []).map(r => {
+            const o = {};
+            c.fields.forEach(f => { if (r[f]) o[f] = r[f]; });
+            return o;
+        }).filter(o => Object.keys(o).length > 0);
+        document.getElementById('data-' + tId).value = JSON.stringify(data);
+    });
+}
+
+// Load existing data on edit
+{% if anggota and anggota.riwayat_hidup %}
+(function(){
+    const ex = {{ anggota.riwayat_hidup | tojson }};
+    const map = {
+        'pend-umum':   { key:'riwayat_pendidikan_umum',   f:['no','jenis','tahun','nama','prestasi'] },
+        'pend-mil':    { key:'riwayat_pendidikan_militer', f:['no','jenis','tahun','prestasi'] },
+        'kepangkatan': { key:'riwayat_kepangkatan',        f:['no','pangkat','tmt','nomor_kep'] },
+        'jabatan':     { key:'riwayat_jabatan',            f:['no','jabatan','tmt'] },
+        'penugasan':   { key:'riwayat_penugasan',          f:['no','nama_operasi','tahun','prestasi'] },
+        'luar-negeri': { key:'penugasan_luar_negeri',      f:['no','macam_tugas','tahun','negara','prestasi'] },
+        'tanda-jasa':  { key:'tanda_jasa',                 f:['no','nama'] },
+        'bahasa':      { key:'kemampuan_bahasa',           f:['no','bahasa','tingkat'] },
+        'prestasi':    { key:'riwayat_prestasi',           f:['no','kegiatan','tahun','tempat','deskripsi','kep'] },
+        'anak':        { key:'riwayat_anak',               f:['no','nama','tgl_lahir'] },
+    };
+    Object.entries(map).forEach(([tId, cfg]) => {
+        const arr = ex[cfg.key] || [];
+        tableData[tId] = arr.map((r, i) => {
+            const o = {no: i+1};
+            cfg.f.filter(f => f!=='no').forEach(f => { o[f] = r[f] || ''; });
+            return o;
+        });
+        renderTable(tId, cfg.f);
+    });
+})();
+{% endif %}
 </script>
 {% endblock %}

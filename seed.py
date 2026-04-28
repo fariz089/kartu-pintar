@@ -133,14 +133,6 @@ def seed_database():
     )
     admin.set_password('admin123')
 
-    user1 = User(
-        username='user1', role='user',
-        nama='Serda Budi Santoso',
-        email='budi@poltekkad.ac.id', is_active=True,
-        anggota_id=anggota_list[0].id,
-    )
-    user1.set_password('user123')
-
     operator = User(
         username='kantin1', role='operator_kantin',
         nama='Operator Kantin Poltekad',
@@ -148,9 +140,23 @@ def seed_database():
     )
     operator.set_password('kantin123')
 
-    db.session.add_all([admin, user1, operator])
+    db.session.add_all([admin, operator])
     db.session.flush()
-    print("  ✅ 3 users (admin, user1, kantin1)")
+
+    # Buat user untuk SETIAP anggota — username = NRP (lowercase), password = NRP
+    anggota_users = []
+    for a in anggota_list:
+        u = User(
+            username=a.nrp.lower(), role='user',
+            nama=a.nama, is_active=True,
+            anggota_id=a.id,
+        )
+        u.set_password(a.nrp)
+        anggota_users.append(u)
+    db.session.add_all(anggota_users)
+    db.session.flush()
+    print(f"  ✅ {2 + len(anggota_users)} users (admin, kantin1, + {len(anggota_users)} akun anggota)")
+    print(f"     Login anggota: username=NRP, password=NRP")
 
     # ========================
     # TRANSAKSI
@@ -241,6 +247,7 @@ def seed_database():
     print("=" * 40)
     print("Login credentials:")
     print("  Admin    : admin / admin123")
-    print("  User     : user1 / user123")
     print("  Kantin   : kantin1 / kantin123")
+    print("  Anggota  : username=NRP / password=NRP")
+    print("  Contoh   : 21250001 / 21250001")
     print("=" * 40)

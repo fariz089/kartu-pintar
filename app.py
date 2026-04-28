@@ -268,6 +268,24 @@ def anggota_to_dict(a, include_lokasi=True):
         'tanggal_lahir': a.tanggal_lahir.strftime('%d %B %Y') if a.tanggal_lahir else '',
         'golongan_darah': a.golongan_darah, 'agama': a.agama,
         'alamat': a.alamat, 'no_telepon': a.no_telepon,
+        # Riwayat hidup fields
+        'korp': a.korp, 'suku_bangsa': a.suku_bangsa,
+        'sumber_ba': a.sumber_ba,
+        'tmt_tni': a.tmt_tni.strftime('%d %B %Y') if a.tmt_tni else '',
+        'tmt_jabatan': a.tmt_jabatan.strftime('%d %B %Y') if a.tmt_jabatan else '',
+        'status_pernikahan': a.status_pernikahan,
+        'nama_pasangan': a.nama_pasangan, 'jml_anak': a.jml_anak or 0,
+        'alamat_tinggal': a.alamat_tinggal,
+        'nama_ayah': a.nama_ayah, 'nama_ibu': a.nama_ibu,
+        'alamat_orang_tua': a.alamat_orang_tua,
+        'riwayat_hidup': a.get_riwayat_hidup(),
+        # User account
+        'user_account': {
+            'id': a.user_account.id if a.user_account else None,
+            'username': a.user_account.username if a.user_account else None,
+            'role': a.user_account.role if a.user_account else None,
+            'is_active': a.user_account.is_active if a.user_account else None,
+        } if hasattr(a, 'user_account') else None,
     }
     if include_lokasi:
         d['lokasi_terakhir'] = {
@@ -400,6 +418,7 @@ def register_routes(app):
     def anggota_tambah():
         if request.method == 'POST':
             try:
+                import json as _json
                 tgl = request.form.get('tanggal_lahir', '')
                 tgl_lahir = datetime.strptime(tgl, '%Y-%m-%d').date() if tgl else None
 
@@ -430,6 +449,23 @@ def register_routes(app):
                         flash(f'Foto: {ve}', 'danger')
                         return render_template('admin/anggota_form.html', mode='tambah')
 
+                # Parse date fields for riwayat hidup
+                tmt_tni_str = request.form.get('tmt_tni', '')
+                tmt_tni = datetime.strptime(tmt_tni_str, '%Y-%m-%d').date() if tmt_tni_str else None
+                tmt_jabatan_str = request.form.get('tmt_jabatan', '')
+                tmt_jabatan = datetime.strptime(tmt_jabatan_str, '%Y-%m-%d').date() if tmt_jabatan_str else None
+
+                # Parse riwayat JSON fields from form
+                def parse_riwayat_json(key):
+                    val = request.form.get(key, '').strip()
+                    if not val:
+                        return None
+                    try:
+                        parsed = _json.loads(val)
+                        return _json.dumps(parsed, ensure_ascii=False)
+                    except Exception:
+                        return None
+
                 anggota = Anggota(
                     kartu_id=kartu_id, nrp=nrp,
                     nama=request.form.get('nama', '').strip(),
@@ -447,9 +483,61 @@ def register_routes(app):
                     mili_id=extract_mili_id(mili_raw),
                     qr_data=qr_input or kartu_id,
                     foto=foto_path,
-                    saldo=0, status_kartu='Aktif',
+                    saldo=int(request.form.get('saldo', 0) or 0),
+                    status_kartu='Aktif',
+                    # Riwayat hidup
+                    korp=request.form.get('korp', '').strip() or None,
+                    suku_bangsa=request.form.get('suku_bangsa', '').strip() or None,
+                    sumber_ba=request.form.get('sumber_ba', '').strip() or None,
+                    tmt_tni=tmt_tni,
+                    tmt_jabatan=tmt_jabatan,
+                    status_pernikahan=request.form.get('status_pernikahan', '').strip() or None,
+                    nama_pasangan=request.form.get('nama_pasangan', '').strip() or None,
+                    jml_anak=int(request.form.get('jml_anak', 0) or 0),
+                    alamat_tinggal=request.form.get('alamat_tinggal', '').strip() or None,
+                    nama_ayah=request.form.get('nama_ayah', '').strip() or None,
+                    nama_ibu=request.form.get('nama_ibu', '').strip() or None,
+                    alamat_orang_tua=request.form.get('alamat_orang_tua', '').strip() or None,
+                    riwayat_pendidikan_umum=parse_riwayat_json('riwayat_pendidikan_umum'),
+                    riwayat_pendidikan_militer=parse_riwayat_json('riwayat_pendidikan_militer'),
+                    riwayat_penugasan=parse_riwayat_json('riwayat_penugasan'),
+                    riwayat_kepangkatan=parse_riwayat_json('riwayat_kepangkatan'),
+                    riwayat_jabatan=parse_riwayat_json('riwayat_jabatan'),
+                    riwayat_anak=parse_riwayat_json('riwayat_anak'),
+                    kemampuan_bahasa=parse_riwayat_json('kemampuan_bahasa'),
+                    tanda_jasa=parse_riwayat_json('tanda_jasa'),
+                    penugasan_luar_negeri=parse_riwayat_json('penugasan_luar_negeri'),
+                    riwayat_prestasi=parse_riwayat_json('riwayat_prestasi'),
                 )
                 db.session.add(anggota)
+                db.session.flush()  # Get anggota.id before commit
+
+                # Buat user account jika diminta
+                if request.form.get('buat_user') == '1':
+                    username = request.form.get('user_username', '').strip()
+                    password = request.form.get('user_password', '').strip()
+                    user_role = request.form.get('user_role', 'user').strip()
+
+                    if not username:
+                        username = nrp.lower()
+                    if not password:
+                        password = nrp  # default password = NRP
+                    if user_role not in ('admin', 'user', 'operator_kantin'):
+                        user_role = 'user'
+
+                    if User.query.filter_by(username=username).first():
+                        flash(f'Username "{username}" sudah digunakan. Anggota disimpan tanpa akun login.', 'warning')
+                    else:
+                        new_user = User(
+                            username=username,
+                            nama=anggota.nama,
+                            role=user_role,
+                            is_active=True,
+                            anggota_id=anggota.id,
+                        )
+                        new_user.set_password(password)
+                        db.session.add(new_user)
+
                 db.session.commit()
                 flash(f'Anggota {anggota.nama} berhasil ditambahkan (ID: {kartu_id})!', 'success')
                 return redirect(url_for('anggota_detail', anggota_id=kartu_id))
@@ -467,6 +555,7 @@ def register_routes(app):
             return redirect(url_for('anggota_list'))
         if request.method == 'POST':
             try:
+                import json as _json
                 tgl = request.form.get('tanggal_lahir', '')
                 if tgl:
                     a.tanggal_lahir = datetime.strptime(tgl, '%Y-%m-%d').date()
@@ -481,15 +570,48 @@ def register_routes(app):
                 a.alamat = request.form.get('alamat', a.alamat).strip()
                 a.no_telepon = request.form.get('no_telepon', a.no_telepon or '').strip()
                 a.nfc_uid = request.form.get('nfc_uid', a.nfc_uid or '').strip() or None
-                # MiLi ID: accept URL or raw ID. Empty string means "clear it".
                 mili_raw = request.form.get('mili_id', '').strip()
                 a.mili_id = extract_mili_id(mili_raw) if mili_raw else None
-                # QR data: if empty, fall back to kartu_id
                 qr_input = request.form.get('qr_data', '').strip()
                 a.qr_data = qr_input or a.kartu_id
                 a.status_kartu = request.form.get('status_kartu', a.status_kartu)
 
-                # Handle foto upload (optional - kalau user upload foto baru)
+                # Riwayat hidup fields
+                a.korp = request.form.get('korp', '').strip() or a.korp
+                a.suku_bangsa = request.form.get('suku_bangsa', '').strip() or a.suku_bangsa
+                a.sumber_ba = request.form.get('sumber_ba', '').strip() or a.sumber_ba
+                tmt_tni_str = request.form.get('tmt_tni', '')
+                if tmt_tni_str:
+                    a.tmt_tni = datetime.strptime(tmt_tni_str, '%Y-%m-%d').date()
+                tmt_jab_str = request.form.get('tmt_jabatan', '')
+                if tmt_jab_str:
+                    a.tmt_jabatan = datetime.strptime(tmt_jab_str, '%Y-%m-%d').date()
+                a.status_pernikahan = request.form.get('status_pernikahan', '').strip() or a.status_pernikahan
+                a.nama_pasangan = request.form.get('nama_pasangan', '').strip() or a.nama_pasangan
+                jml = request.form.get('jml_anak', '')
+                if jml:
+                    a.jml_anak = int(jml)
+                a.alamat_tinggal = request.form.get('alamat_tinggal', '').strip() or a.alamat_tinggal
+                a.nama_ayah = request.form.get('nama_ayah', '').strip() or a.nama_ayah
+                a.nama_ibu = request.form.get('nama_ibu', '').strip() or a.nama_ibu
+                a.alamat_orang_tua = request.form.get('alamat_orang_tua', '').strip() or a.alamat_orang_tua
+
+                def update_riwayat(field):
+                    val = request.form.get(field, '').strip()
+                    if val:
+                        try:
+                            parsed = _json.loads(val)
+                            setattr(a, field, _json.dumps(parsed, ensure_ascii=False))
+                        except Exception:
+                            pass
+
+                for f in ['riwayat_pendidikan_umum', 'riwayat_pendidikan_militer',
+                          'riwayat_penugasan', 'riwayat_kepangkatan', 'riwayat_jabatan',
+                          'riwayat_anak', 'kemampuan_bahasa', 'tanda_jasa',
+                          'penugasan_luar_negeri', 'riwayat_prestasi']:
+                    update_riwayat(f)
+
+                # Handle foto upload
                 foto_file = request.files.get('foto')
                 if foto_file and foto_file.filename:
                     try:
@@ -501,6 +623,30 @@ def register_routes(app):
                         db.session.rollback()
                         return redirect(url_for('anggota_edit', anggota_id=anggota_id))
 
+                # Kelola user account
+                existing_user = a.user_account
+                if request.form.get('buat_user') == '1' and not existing_user:
+                    username = request.form.get('user_username', '').strip() or a.nrp.lower()
+                    password = request.form.get('user_password', '').strip() or a.nrp
+                    user_role = request.form.get('user_role', 'user')
+                    if user_role not in ('admin', 'user', 'operator_kantin'):
+                        user_role = 'user'
+                    if User.query.filter_by(username=username).first():
+                        flash(f'Username "{username}" sudah ada.', 'warning')
+                    else:
+                        new_user = User(username=username, nama=a.nama, role=user_role,
+                                        is_active=True, anggota_id=a.id)
+                        new_user.set_password(password)
+                        db.session.add(new_user)
+                elif existing_user:
+                    # Update existing user if fields provided
+                    new_pw = request.form.get('user_password', '').strip()
+                    if new_pw:
+                        existing_user.set_password(new_pw)
+                    user_active = request.form.get('user_is_active', '')
+                    if user_active in ('1', '0'):
+                        existing_user.is_active = (user_active == '1')
+
                 db.session.commit()
                 flash('Data anggota berhasil diperbarui!', 'success')
                 return redirect(url_for('anggota_detail', anggota_id=anggota_id))
@@ -509,8 +655,10 @@ def register_routes(app):
                 flash(f'Gagal: {str(e)}', 'danger')
 
         anggota = anggota_to_dict(a)
-        # Override tanggal_lahir format for form input
+        # Override format untuk input form
         anggota['tanggal_lahir'] = a.tanggal_lahir.strftime('%Y-%m-%d') if a.tanggal_lahir else ''
+        anggota['tmt_tni'] = a.tmt_tni.strftime('%Y-%m-%d') if a.tmt_tni else ''
+        anggota['tmt_jabatan'] = a.tmt_jabatan.strftime('%Y-%m-%d') if a.tmt_jabatan else ''
         return render_template('admin/anggota_form.html', mode='edit', anggota=anggota)
 
     @app.route('/anggota/delete/<anggota_id>', methods=['POST'])
@@ -532,7 +680,167 @@ def register_routes(app):
             flash(f'Gagal: {str(e)}', 'danger')
         return redirect(url_for('anggota_list'))
 
-    # --- SCAN NFC & QR ---
+    @app.route('/anggota/<anggota_id>/buat-user', methods=['POST'])
+    @admin_required
+    def anggota_create_user(anggota_id):
+        """Buat user account untuk anggota yang belum punya akun login"""
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            flash('Data anggota tidak ditemukan.', 'danger')
+            return redirect(url_for('anggota_list'))
+        if a.user_account:
+            flash(f'Anggota {a.nama} sudah memiliki akun login ({a.user_account.username}).', 'warning')
+            return redirect(url_for('anggota_detail', anggota_id=anggota_id))
+        username = request.form.get('username', '').strip() or a.nrp.lower()
+        password = request.form.get('password', '').strip() or a.nrp
+        role = request.form.get('role', 'user')
+        if role not in ('admin', 'user', 'operator_kantin'):
+            role = 'user'
+        if User.query.filter_by(username=username).first():
+            flash(f'Username "{username}" sudah digunakan, coba username lain.', 'danger')
+            return redirect(url_for('anggota_detail', anggota_id=anggota_id))
+        try:
+            new_user = User(username=username, nama=a.nama, role=role, is_active=True, anggota_id=a.id)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            flash(f'Akun login berhasil dibuat! Username: {username}', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Gagal membuat akun: {str(e)}', 'danger')
+        return redirect(url_for('anggota_detail', anggota_id=anggota_id))
+
+    # ============================================================
+    # USER MANAGEMENT (Admin)
+    # ============================================================
+
+    @app.route('/users')
+    @admin_required
+    def user_list():
+        """Halaman manajemen semua user"""
+        search = request.args.get('search', '').strip()
+        query = User.query
+        if search:
+            query = query.filter(db.or_(
+                User.username.ilike(f'%{search}%'),
+                User.nama.ilike(f'%{search}%'),
+            ))
+        users = query.order_by(User.created_at.desc()).all()
+        # Anggota tanpa user
+        anggota_tanpa_user = Anggota.query.filter(
+            ~Anggota.id.in_(db.session.query(User.anggota_id).filter(User.anggota_id.isnot(None)))
+        ).order_by(Anggota.nama).all()
+        return render_template('admin/user_list.html',
+            users=users, search=search,
+            anggota_tanpa_user=anggota_tanpa_user)
+
+    @app.route('/users/tambah', methods=['GET', 'POST'])
+    @admin_required
+    def user_tambah():
+        """Buat user baru (standalone, tanpa link ke anggota)"""
+        anggota_list_all = Anggota.query.filter(
+            ~Anggota.id.in_(db.session.query(User.anggota_id).filter(User.anggota_id.isnot(None)))
+        ).order_by(Anggota.nama).all()
+        if request.method == 'POST':
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
+            nama = request.form.get('nama', '').strip()
+            role = request.form.get('role', 'user')
+            anggota_id = request.form.get('anggota_id', '') or None
+            if not username or not password or not nama:
+                flash('Username, password, dan nama wajib diisi.', 'danger')
+                return render_template('admin/user_form.html', mode='tambah', anggota_list=anggota_list_all)
+            if User.query.filter_by(username=username).first():
+                flash(f'Username "{username}" sudah digunakan.', 'danger')
+                return render_template('admin/user_form.html', mode='tambah', anggota_list=anggota_list_all)
+            if role not in ('admin', 'user', 'operator_kantin'):
+                role = 'user'
+            try:
+                user = User(username=username, nama=nama, role=role, is_active=True,
+                            anggota_id=int(anggota_id) if anggota_id else None)
+                user.set_password(password)
+                db.session.add(user)
+                db.session.commit()
+                flash(f'User {username} berhasil dibuat!', 'success')
+                return redirect(url_for('user_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+        return render_template('admin/user_form.html', mode='tambah', anggota_list=anggota_list_all)
+
+    @app.route('/users/edit/<int:user_id>', methods=['GET', 'POST'])
+    @admin_required
+    def user_edit(user_id):
+        u = User.query.get_or_404(user_id)
+        anggota_list_all = Anggota.query.order_by(Anggota.nama).all()
+        if request.method == 'POST':
+            try:
+                u.nama = request.form.get('nama', u.nama).strip()
+                role = request.form.get('role', u.role)
+                if role in ('admin', 'user', 'operator_kantin'):
+                    u.role = role
+                u.is_active = request.form.get('is_active') == '1'
+                new_pw = request.form.get('password', '').strip()
+                if new_pw:
+                    u.set_password(new_pw)
+                anggota_id = request.form.get('anggota_id', '') or None
+                u.anggota_id = int(anggota_id) if anggota_id else None
+                db.session.commit()
+                flash(f'User {u.username} berhasil diperbarui!', 'success')
+                return redirect(url_for('user_list'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal: {str(e)}', 'danger')
+        return render_template('admin/user_form.html', mode='edit', user=u.to_dict(), anggota_list=anggota_list_all)
+
+    @app.route('/users/toggle/<int:user_id>', methods=['POST'])
+    @admin_required
+    def user_toggle(user_id):
+        u = User.query.get_or_404(user_id)
+        if u.id == session.get('user_id'):
+            flash('Tidak dapat menonaktifkan akun sendiri.', 'warning')
+            return redirect(url_for('user_list'))
+        u.is_active = not u.is_active
+        db.session.commit()
+        flash(f'User {u.username} {"diaktifkan" if u.is_active else "dinonaktifkan"}.', 'success')
+        return redirect(url_for('user_list'))
+
+    @app.route('/users/reset-password/<int:user_id>', methods=['POST'])
+    @admin_required
+    def user_reset_password(user_id):
+        u = User.query.get_or_404(user_id)
+        new_pw = request.form.get('new_password', '').strip()
+        if not new_pw or len(new_pw) < 4:
+            flash('Password minimal 4 karakter.', 'danger')
+            return redirect(url_for('user_list'))
+        u.set_password(new_pw)
+        db.session.commit()
+        flash(f'Password user {u.username} berhasil direset.', 'success')
+        return redirect(url_for('user_list'))
+
+    @app.route('/users/bulk-create', methods=['POST'])
+    @admin_required
+    def user_bulk_create():
+        """Bulk create user untuk semua anggota yang belum punya akun"""
+        anggota_tanpa_user = Anggota.query.filter(
+            ~Anggota.id.in_(db.session.query(User.anggota_id).filter(User.anggota_id.isnot(None)))
+        ).all()
+        created = 0
+        skipped = 0
+        for a in anggota_tanpa_user:
+            username = a.nrp.lower()
+            if User.query.filter_by(username=username).first():
+                skipped += 1
+                continue
+            u = User(username=username, nama=a.nama, role='user', is_active=True, anggota_id=a.id)
+            u.set_password(a.nrp)
+            db.session.add(u)
+            created += 1
+        db.session.commit()
+        flash(f'Bulk create selesai: {created} akun dibuat, {skipped} dilewati (username sudah ada).', 'success')
+        return redirect(url_for('user_list'))
+
+
 
     @app.route('/scan')
     @login_required
@@ -1255,6 +1563,64 @@ def register_api_routes(app):
         if a:
             return jsonify({'success': True, 'data': a.to_dict()})
         return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+
+    @app.route('/api/anggota/<anggota_id>/riwayat-hidup', methods=['GET'])
+    @jwt_required
+    def api_riwayat_hidup_get(anggota_id):
+        """Ambil data riwayat hidup lengkap anggota"""
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+        data = a.get_riwayat_hidup()
+        data['nama'] = a.nama
+        data['nrp'] = a.nrp
+        data['pangkat'] = a.pangkat
+        data['jabatan'] = a.jabatan
+        data['satuan'] = a.satuan
+        return jsonify({'success': True, 'data': data})
+
+    @app.route('/api/anggota/<anggota_id>/riwayat-hidup', methods=['PUT'])
+    @jwt_required
+    def api_riwayat_hidup_update(anggota_id):
+        """Update data riwayat hidup anggota"""
+        # Only admin or the anggota themselves
+        current_user = User.query.get(request.current_user_id)
+        a = Anggota.query.filter_by(kartu_id=anggota_id).first()
+        if not a:
+            return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+        if current_user.role != 'admin' and current_user.anggota_id != a.id:
+            return jsonify({'success': False, 'message': 'Tidak diizinkan'}), 403
+
+        import json as _json
+        data = request.get_json() or {}
+
+        str_fields = ['korp', 'suku_bangsa', 'sumber_ba', 'status_pernikahan',
+                      'nama_pasangan', 'alamat_tinggal', 'nama_ayah', 'nama_ibu', 'alamat_orang_tua']
+        for f in str_fields:
+            if f in data:
+                setattr(a, f, data[f] or None)
+
+        if 'jml_anak' in data:
+            a.jml_anak = int(data['jml_anak'] or 0)
+
+        date_fields = ['tmt_tni', 'tmt_jabatan']
+        for f in date_fields:
+            if f in data and data[f]:
+                try:
+                    setattr(a, f, datetime.strptime(data[f], '%Y-%m-%d').date())
+                except Exception:
+                    pass
+
+        json_fields = ['riwayat_pendidikan_umum', 'riwayat_pendidikan_militer',
+                       'riwayat_penugasan', 'riwayat_kepangkatan', 'riwayat_jabatan',
+                       'riwayat_anak', 'kemampuan_bahasa', 'tanda_jasa',
+                       'penugasan_luar_negeri', 'riwayat_prestasi']
+        for f in json_fields:
+            if f in data:
+                setattr(a, f, _json.dumps(data[f], ensure_ascii=False) if data[f] else None)
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Riwayat hidup berhasil diperbarui', 'data': a.get_riwayat_hidup()})
 
     # --- HELPER: Extract MiLi Card ID from URL ---
     def extract_mili_id(raw_data):
