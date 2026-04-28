@@ -98,7 +98,7 @@
                         <label class="form-label">Jurusan</label>
                         <select name="jurusan" class="form-select">
                             <option value="">— Pilih —</option>
-                            {% for j in ['Teknik Elektronika','Teknik Mesin','Teknik Informatika','Teknik Sipil','Teknik Persenjataan','Lainnya'] %}
+                            {% for j in ['Teknik Elektronika','Teknik Telekomunikasi Militer','Teknik Otomotif Kendaraan Tempur','Teknik Rekayasa Persenjataan Militer','Rekayasa Keamanan Cyber'] %}
                             <option value="{{ j }}" {% if anggota and anggota.jurusan == j %}selected{% endif %}>{{ j }}</option>
                             {% endfor %}
                         </select>
