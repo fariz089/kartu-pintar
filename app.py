@@ -1612,10 +1612,19 @@ def register_api_routes(app):
     @app.route('/api/anggota/<anggota_id>/riwayat-hidup', methods=['GET'])
     @jwt_required
     def api_riwayat_hidup_get(anggota_id):
-        """Ambil data riwayat hidup lengkap anggota"""
+        """Ambil data riwayat hidup lengkap anggota.
+        Role admin/pam: bisa lihat semua anggota.
+        Role lain (user/operator_kantin): hanya bisa lihat dirinya sendiri.
+        """
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
             return jsonify({'success': False, 'message': 'Tidak ditemukan'}), 404
+        current_user = User.query.get(request.current_user_id)
+        if not current_user:
+            return jsonify({'success': False, 'message': 'Akun tidak valid'}), 401
+        # Otorisasi: admin/pam bebas; lainnya hanya boleh data sendiri
+        if current_user.role not in ('admin', 'pam') and current_user.anggota_id != a.id:
+            return jsonify({'success': False, 'message': 'Tidak diizinkan melihat riwayat anggota lain'}), 403
         data = a.get_riwayat_hidup()
         data['nama'] = a.nama
         data['nrp'] = a.nrp
