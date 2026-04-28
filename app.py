@@ -578,6 +578,20 @@ def register_routes(app):
                 if tgl:
                     a.tanggal_lahir = datetime.strptime(tgl, '%Y-%m-%d').date()
                 a.nama = request.form.get('nama', a.nama).strip()
+
+                # NRP — bisa diubah, tapi cek unique dulu
+                new_nrp = request.form.get('nrp', a.nrp).strip()
+                if new_nrp and new_nrp != a.nrp:
+                    existing = Anggota.query.filter(
+                        Anggota.nrp == new_nrp,
+                        Anggota.id != a.id
+                    ).first()
+                    if existing:
+                        flash(f'NRP "{new_nrp}" sudah dipakai anggota lain ({existing.nama}).', 'danger')
+                        db.session.rollback()
+                        return redirect(url_for('anggota_edit', anggota_id=anggota_id))
+                    a.nrp = new_nrp
+
                 a.pangkat = request.form.get('pangkat', a.pangkat).strip()
                 a.satuan = request.form.get('satuan', a.satuan).strip()
                 a.jabatan = request.form.get('jabatan', a.jabatan).strip()
