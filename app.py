@@ -597,7 +597,9 @@ def register_routes(app):
                 a.jabatan = request.form.get('jabatan', a.jabatan).strip()
                 a.jurusan = request.form.get('jurusan', a.jurusan).strip()
                 a.tempat_lahir = request.form.get('tempat_lahir', a.tempat_lahir).strip()
-                a.golongan_darah = request.form.get('golongan_darah', a.golongan_darah)
+                # ENUM nullable: kosong → NULL, bukan '' (kalau '' MySQL "Data truncated")
+                gol_raw = request.form.get('golongan_darah', '').strip()
+                a.golongan_darah = gol_raw if gol_raw in ('A', 'B', 'AB', 'O') else None
                 a.agama = request.form.get('agama', a.agama).strip()
                 a.alamat = request.form.get('alamat', a.alamat).strip()
                 a.no_telepon = request.form.get('no_telepon', a.no_telepon or '').strip()
@@ -606,7 +608,10 @@ def register_routes(app):
                 a.mili_id = extract_mili_id(mili_raw) if mili_raw else None
                 qr_input = request.form.get('qr_data', '').strip()
                 a.qr_data = qr_input or a.kartu_id
-                a.status_kartu = request.form.get('status_kartu', a.status_kartu)
+                # ENUM NOT NULL: kalau kosong, pertahankan nilai lama
+                status_raw = request.form.get('status_kartu', '').strip()
+                if status_raw in ('Aktif', 'Nonaktif', 'Hilang', 'Diblokir'):
+                    a.status_kartu = status_raw
 
                 # Riwayat hidup fields
                 a.korp = request.form.get('korp', '').strip() or a.korp
