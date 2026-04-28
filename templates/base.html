@@ -119,6 +119,39 @@
                 </a>
             </div>
 
+            {# === PAM (Pembina): Monitoring anggota only — TIDAK punya akses ke produk/kasir/topup/transaksi === #}
+            {% elif role == 'pam' %}
+            <div class="nav-section">
+                <span class="nav-section-title">MENU UTAMA</span>
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('anggota_list') }}" class="nav-link {% if 'anggota' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Data Anggota</span>
+                </a>
+                <a href="{{ url_for('scan_page') }}" class="nav-link {% if 'scan' in request.endpoint and request.endpoint != 'scan_log' %}active{% endif %}">
+                    <i class="bi bi-nfc"></i>
+                    <span>Scan NFC / QR</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-section-title">MONITORING</span>
+                <a href="{{ url_for('lacak_kartu') }}" class="nav-link {% if request.endpoint == 'lacak_kartu' %}active{% endif %}">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span>Lacak Kartu</span>
+                </a>
+                <a href="{{ url_for('riwayat_lokasi') }}" class="nav-link {% if 'riwayat_lokasi' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Riwayat Lokasi</span>
+                </a>
+                <a href="{{ url_for('cetak_kartu') }}" class="nav-link {% if request.endpoint == 'cetak_kartu' %}active{% endif %}">
+                    <i class="bi bi-printer-fill"></i>
+                    <span>Cetak Kartu</span>
+                </a>
+            </div>
+
             {# === OPERATOR KANTIN: Payment + Sales history === #}
             {% elif role == 'operator_kantin' %}
             <div class="nav-section">

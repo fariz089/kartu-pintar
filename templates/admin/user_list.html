@@ -60,7 +60,7 @@
                     </td>
                     <td>{{ u.nama }}</td>
                     <td>
-                        <span class="badge" style="background:{% if u.role=='admin' %}rgba(231,76,60,0.2);color:#e74c3c{% elif u.role=='operator_kantin' %}rgba(52,152,219,0.2);color:#3498db{% else %}rgba(46,204,113,0.2);color:#2ecc71{% endif %};">
+                        <span class="badge" style="background:{% if u.role=='admin' %}rgba(231,76,60,0.2);color:#e74c3c{% elif u.role=='operator_kantin' %}rgba(52,152,219,0.2);color:#3498db{% elif u.role=='pam' %}rgba(241,156,32,0.2);color:#f19c20{% else %}rgba(46,204,113,0.2);color:#2ecc71{% endif %};">
                             {{ u.role }}
                         </span>
                     </td>

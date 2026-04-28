@@ -103,6 +103,24 @@ def kantin_or_admin_required(f):
     return decorated
 
 
+def pam_or_admin_required(f):
+    """Allow admin and pam (Pembina) only — untuk route monitoring anggota"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Login required'}), 401
+            flash('Silakan login terlebih dahulu.', 'warning')
+            return redirect(url_for('login'))
+        if session.get('role') not in ('admin', 'pam'):
+            if request.path.startswith('/api/'):
+                return jsonify({'success': False, 'message': 'Admin/Pam access required'}), 403
+            flash('Anda tidak memiliki akses.', 'danger')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ============================================================
 # JWT HELPERS (for React Native mobile app)
 # ============================================================
@@ -363,7 +381,7 @@ def register_routes(app):
         # Operator kantin → redirect to pembayaran
         if role == 'operator_kantin':
             return redirect(url_for('pembayaran'))
-        # Admin → full dashboard
+        # Admin & Pam → full dashboard
         total_anggota = Anggota.query.count()
         kartu_aktif = Anggota.query.filter_by(status_kartu='Aktif').count()
         kartu_hilang = Anggota.query.filter_by(status_kartu='Hilang').count()
@@ -383,7 +401,7 @@ def register_routes(app):
     # --- ANGGOTA (Admin only) ---
 
     @app.route('/anggota')
-    @admin_required
+    @pam_or_admin_required
     def anggota_list():
         search = request.args.get('search', '').strip()
         status = request.args.get('status', '').strip()
@@ -402,7 +420,7 @@ def register_routes(app):
             anggota_data=[anggota_to_dict(a, include_lokasi=False) for a in all_anggota])
 
     @app.route('/anggota/<anggota_id>')
-    @admin_required
+    @pam_or_admin_required
     def anggota_detail(anggota_id):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
@@ -522,7 +540,7 @@ def register_routes(app):
                         username = nrp.lower()
                     if not password:
                         password = nrp  # default password = NRP
-                    if user_role not in ('admin', 'user', 'operator_kantin'):
+                    if user_role not in ('admin', 'user', 'operator_kantin', 'pam'):
                         user_role = 'user'
 
                     if User.query.filter_by(username=username).first():
@@ -629,7 +647,7 @@ def register_routes(app):
                     username = request.form.get('user_username', '').strip() or a.nrp.lower()
                     password = request.form.get('user_password', '').strip() or a.nrp
                     user_role = request.form.get('user_role', 'user')
-                    if user_role not in ('admin', 'user', 'operator_kantin'):
+                    if user_role not in ('admin', 'user', 'operator_kantin', 'pam'):
                         user_role = 'user'
                     if User.query.filter_by(username=username).first():
                         flash(f'Username "{username}" sudah ada.', 'warning')
@@ -694,7 +712,7 @@ def register_routes(app):
         username = request.form.get('username', '').strip() or a.nrp.lower()
         password = request.form.get('password', '').strip() or a.nrp
         role = request.form.get('role', 'user')
-        if role not in ('admin', 'user', 'operator_kantin'):
+        if role not in ('admin', 'user', 'operator_kantin', 'pam'):
             role = 'user'
         if User.query.filter_by(username=username).first():
             flash(f'Username "{username}" sudah digunakan, coba username lain.', 'danger')
@@ -753,7 +771,7 @@ def register_routes(app):
             if User.query.filter_by(username=username).first():
                 flash(f'Username "{username}" sudah digunakan.', 'danger')
                 return render_template('admin/user_form.html', mode='tambah', anggota_list=anggota_list_all)
-            if role not in ('admin', 'user', 'operator_kantin'):
+            if role not in ('admin', 'user', 'operator_kantin', 'pam'):
                 role = 'user'
             try:
                 user = User(username=username, nama=nama, role=role, is_active=True,
@@ -777,7 +795,7 @@ def register_routes(app):
             try:
                 u.nama = request.form.get('nama', u.nama).strip()
                 role = request.form.get('role', u.role)
-                if role in ('admin', 'user', 'operator_kantin'):
+                if role in ('admin', 'user', 'operator_kantin', 'pam'):
                     u.role = role
                 u.is_active = request.form.get('is_active') == '1'
                 new_pw = request.form.get('password', '').strip()
@@ -1017,10 +1035,10 @@ def register_routes(app):
             flash(f'Gagal: {str(e)}', 'danger')
         return redirect(url_for('topup'))
 
-    # --- LACAK KARTU (Admin only) ---
+    # --- LACAK KARTU (Admin & Pam) ---
 
     @app.route('/lacak')
-    @admin_required
+    @pam_or_admin_required
     def lacak_kartu():
         anggota_raw = Anggota.query.all()
         anggota_data = [{
@@ -1043,10 +1061,10 @@ def register_routes(app):
         scan_data = [l.to_dict() for l in logs]
         return render_template('admin/scan_log.html', scan_data=scan_data)
 
-    # --- RIWAYAT LOKASI (Location History) — Admin only ---
+    # --- RIWAYAT LOKASI (Location History) — Admin & Pam ---
 
     @app.route('/riwayat-lokasi')
-    @admin_required
+    @pam_or_admin_required
     def riwayat_lokasi():
         anggota_raw = Anggota.query.order_by(Anggota.nama).all()
         anggota_data = [{
@@ -1056,7 +1074,7 @@ def register_routes(app):
         return render_template('riwayat_lokasi.html', anggota_data=anggota_data)
 
     @app.route('/riwayat-lokasi/<anggota_id>')
-    @admin_required
+    @pam_or_admin_required
     def riwayat_lokasi_detail(anggota_id):
         a = Anggota.query.filter_by(kartu_id=anggota_id).first()
         if not a:
@@ -1068,10 +1086,10 @@ def register_routes(app):
             anggota=anggota_to_dict(a),
             history=[h.to_dict() for h in history])
 
-    # --- CETAK STIKER KARTU — Admin only ---
+    # --- CETAK STIKER KARTU — Admin & Pam ---
 
     @app.route('/cetak-kartu')
-    @admin_required
+    @pam_or_admin_required
     def cetak_kartu():
         anggota_raw = Anggota.query.order_by(Anggota.nama).all()
         anggota_data = [anggota_to_dict(a, include_lokasi=False) for a in anggota_raw]

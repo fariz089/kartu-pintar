@@ -52,7 +52,8 @@
                 <select name="role" class="form-select" required>
                     <option value="user" {% if user and user.role == 'user' %}selected{% elif not user %}selected{% endif %}>User (Anggota)</option>
                     <option value="operator_kantin" {% if user and user.role == 'operator_kantin' %}selected{% endif %}>Operator Kantin</option>
-                    <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Admin</option>
+                    <option value="pam" {% if user and user.role == 'pam' %}selected{% endif %}>Pam (Pembina)</option>
+                    <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>Admin (Komandan)</option>
                 </select>
             </div>
 
