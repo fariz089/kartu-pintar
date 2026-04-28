@@ -603,10 +603,18 @@ def register_routes(app):
                 a.agama = request.form.get('agama', a.agama).strip()
                 a.alamat = request.form.get('alamat', a.alamat).strip()
                 a.no_telepon = request.form.get('no_telepon', a.no_telepon or '').strip()
-                a.nfc_uid = request.form.get('nfc_uid', a.nfc_uid or '').strip() or None
-                mili_raw = request.form.get('mili_id', '').strip()
+                # Helper: clean value — string kosong/'None'/'null' jadi None
+                def _clean(val):
+                    if val is None:
+                        return None
+                    v = str(val).strip()
+                    if not v or v.lower() in ('none', 'null'):
+                        return None
+                    return v
+                a.nfc_uid = _clean(request.form.get('nfc_uid', ''))
+                mili_raw = _clean(request.form.get('mili_id', ''))
                 a.mili_id = extract_mili_id(mili_raw) if mili_raw else None
-                qr_input = request.form.get('qr_data', '').strip()
+                qr_input = _clean(request.form.get('qr_data', ''))
                 a.qr_data = qr_input or a.kartu_id
                 # ENUM NOT NULL: kalau kosong, pertahankan nilai lama
                 status_raw = request.form.get('status_kartu', '').strip()

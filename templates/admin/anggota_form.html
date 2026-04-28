@@ -52,11 +52,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Nama Lengkap *</label>
-                        <input type="text" name="nama" class="form-input" value="{{ anggota.nama if anggota else '' }}" placeholder="Nama lengkap" required>
+                        <input type="text" name="nama" class="form-input" value="{{ anggota.nama if anggota and anggota.nama else '' }}" placeholder="Nama lengkap" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">NRP *</label>
-                        <input type="text" name="nrp" class="form-input" value="{{ anggota.nrp if anggota else '' }}" placeholder="Nomor Registrasi Pokok" required>
+                        <input type="text" name="nrp" class="form-input" value="{{ anggota.nrp if anggota and anggota.nrp else '' }}" placeholder="Nomor Registrasi Pokok" required>
                     </div>
                 </div>
                 <div class="form-row">
@@ -82,11 +82,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Jabatan</label>
-                        <input type="text" name="jabatan" class="form-input" value="{{ anggota.jabatan if anggota else '' }}" placeholder="Jabatan saat ini">
+                        <input type="text" name="jabatan" class="form-input" value="{{ anggota.jabatan if anggota and anggota.jabatan else '' }}" placeholder="Jabatan saat ini">
                     </div>
                     <div class="form-group">
                         <label class="form-label">TMT Jabatan</label>
-                        <input type="date" name="tmt_jabatan" class="form-input" value="{{ anggota.tmt_jabatan if anggota else '' }}">
+                        <input type="date" name="tmt_jabatan" class="form-input" value="{{ anggota.tmt_jabatan if anggota and anggota.tmt_jabatan else '' }}">
                     </div>
                 </div>
                 <div class="form-row">
@@ -107,11 +107,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Sumber BA</label>
-                        <input type="text" name="sumber_ba" class="form-input" value="{{ anggota.sumber_ba if anggota else '' }}" placeholder="SECABA PK, AKMIL, dll">
+                        <input type="text" name="sumber_ba" class="form-input" value="{{ anggota.sumber_ba if anggota and anggota.sumber_ba else '' }}" placeholder="SECABA PK, AKMIL, dll">
                     </div>
                     <div class="form-group">
                         <label class="form-label">TMT TNI</label>
-                        <input type="date" name="tmt_tni" class="form-input" value="{{ anggota.tmt_tni if anggota else '' }}">
+                        <input type="date" name="tmt_tni" class="form-input" value="{{ anggota.tmt_tni if anggota and anggota.tmt_tni else '' }}">
                     </div>
                 </div>
             </div>
@@ -121,11 +121,11 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Tempat Lahir</label>
-                        <input type="text" name="tempat_lahir" class="form-input" value="{{ anggota.tempat_lahir if anggota else '' }}" placeholder="Kota tempat lahir">
+                        <input type="text" name="tempat_lahir" class="form-input" value="{{ anggota.tempat_lahir if anggota and anggota.tempat_lahir else '' }}" placeholder="Kota tempat lahir">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Tanggal Lahir</label>
-                        <input type="date" name="tanggal_lahir" class="form-input" value="{{ anggota.tanggal_lahir if anggota else '' }}">
+                        <input type="date" name="tanggal_lahir" class="form-input" value="{{ anggota.tanggal_lahir if anggota and anggota.tanggal_lahir else '' }}">
                     </div>
                 </div>
                 <div class="form-row">
@@ -151,16 +151,16 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Suku Bangsa</label>
-                        <input type="text" name="suku_bangsa" class="form-input" value="{{ anggota.suku_bangsa if anggota else '' }}" placeholder="Jawa, Sunda, Batak, dll">
+                        <input type="text" name="suku_bangsa" class="form-input" value="{{ anggota.suku_bangsa if anggota and anggota.suku_bangsa else '' }}" placeholder="Jawa, Sunda, Batak, dll">
                     </div>
                     <div class="form-group">
                         <label class="form-label">No. Telepon</label>
-                        <input type="text" name="no_telepon" class="form-input" value="{{ anggota.no_telepon if anggota else '' }}" placeholder="08xxxxxxxxxx">
+                        <input type="text" name="no_telepon" class="form-input" value="{{ anggota.no_telepon if anggota and anggota.no_telepon else '' }}" placeholder="08xxxxxxxxxx">
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Alamat Tempat Tinggal</label>
-                    <textarea name="alamat" class="form-textarea" placeholder="Alamat lengkap">{{ anggota.alamat if anggota else '' }}</textarea>
+                    <textarea name="alamat" class="form-textarea" placeholder="Alamat lengkap">{{ anggota.alamat if anggota and anggota.alamat else '' }}</textarea>
                 </div>
             </div>
 
@@ -268,7 +268,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Nama Istri/Suami</label>
-                        <input type="text" name="nama_pasangan" class="form-input" value="{{ anggota.nama_pasangan if anggota else '' }}" placeholder="Nama lengkap">
+                        <input type="text" name="nama_pasangan" class="form-input" value="{{ anggota.nama_pasangan if anggota and anggota.nama_pasangan else '' }}" placeholder="Nama lengkap">
                     </div>
                 </div>
                 <div class="form-row">
@@ -278,22 +278,22 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Alamat Tempat Tinggal (Asrama/Dinas)</label>
-                        <input type="text" name="alamat_tinggal" class="form-input" value="{{ anggota.alamat_tinggal if anggota else '' }}" placeholder="Asmil, dll">
+                        <input type="text" name="alamat_tinggal" class="form-input" value="{{ anggota.alamat_tinggal if anggota and anggota.alamat_tinggal else '' }}" placeholder="Asmil, dll">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Nama Ayah</label>
-                        <input type="text" name="nama_ayah" class="form-input" value="{{ anggota.nama_ayah if anggota else '' }}">
+                        <input type="text" name="nama_ayah" class="form-input" value="{{ anggota.nama_ayah if anggota and anggota.nama_ayah else '' }}">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Nama Ibu</label>
-                        <input type="text" name="nama_ibu" class="form-input" value="{{ anggota.nama_ibu if anggota else '' }}">
+                        <input type="text" name="nama_ibu" class="form-input" value="{{ anggota.nama_ibu if anggota and anggota.nama_ibu else '' }}">
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Alamat Orang Tua</label>
-                    <textarea name="alamat_orang_tua" class="form-textarea">{{ anggota.alamat_orang_tua if anggota else '' }}</textarea>
+                    <textarea name="alamat_orang_tua" class="form-textarea">{{ anggota.alamat_orang_tua if anggota and anggota.alamat_orang_tua else '' }}</textarea>
                 </div>
                 <div style="margin-top:12px;">
                     <div class="rh-section-title" style="margin-bottom:8px;">Data Anak</div>
@@ -312,18 +312,18 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">MiLi Card ID <small style="color:var(--text-secondary);">(URL atau ID)</small></label>
-                        <input type="text" name="mili_id" class="form-input" value="{{ anggota.mili_id if anggota else '' }}" placeholder="https://micard.mymili.com/info/...">
+                        <input type="text" name="mili_id" class="form-input" value="{{ anggota.mili_id if anggota and anggota.mili_id else '' }}" placeholder="https://micard.mymili.com/info/...">
                         <small style="color:var(--text-secondary);font-size:12px;">Paste URL lengkap — sistem otomatis ekstrak ID-nya.</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">NFC UID</label>
-                        <input type="text" name="nfc_uid" class="form-input" value="{{ anggota.nfc_uid if anggota else '' }}" placeholder="UID dari kartu NFC">
+                        <input type="text" name="nfc_uid" class="form-input" value="{{ anggota.nfc_uid if anggota and anggota.nfc_uid else '' }}" placeholder="UID dari kartu NFC">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">QR Data <small style="color:var(--text-secondary);">(kosong = Kartu ID)</small></label>
-                        <input type="text" name="qr_data" class="form-input" value="{{ anggota.qr_data if anggota else '' }}">
+                        <input type="text" name="qr_data" class="form-input" value="{{ anggota.qr_data if anggota and anggota.qr_data else '' }}">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Status Kartu</label>
