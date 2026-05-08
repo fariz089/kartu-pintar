@@ -31,14 +31,36 @@
                 <form method="POST" action="{{ url_for('topup_proses') }}">
                     <div class="form-group">
                         <label class="form-label">Pilih Anggota</label>
-                        <select name="anggota_id" class="form-select" id="topupAnggota" required>
-                            <option value="">— Pilih Anggota —</option>
-                            {% for a in anggota_data %}
-                            <option value="{{ a.id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}">
-                                {{ a.nama }} — {{ a.pangkat }} (Saldo: {{ a.saldo|rupiah }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <div class="topup-anggota-combo" style="position: relative;">
+                            <input type="text" id="topupAnggotaSearch" class="form-input"
+                                   placeholder="Cari nama / NRP / pangkat..."
+                                   autocomplete="off"
+                                   onfocus="openTopupAnggotaDropdown()"
+                                   oninput="filterTopupAnggotaDropdown()">
+                            <i class="bi bi-chevron-down" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
+                            <div id="topupAnggotaDropdown" class="anggota-dropdown" style="display: none;">
+                                <div class="anggota-option" data-search="" data-anggota-id="" data-saldo="0" data-nama="" onclick="selectTopupAnggota(this)">
+                                    <span style="color: var(--text-muted);">— Pilih Anggota —</span>
+                                </div>
+                                {% for a in anggota_data %}
+                                <div class="anggota-option"
+                                     data-search="{{ (a.nama ~ ' ' ~ a.nrp ~ ' ' ~ a.pangkat ~ ' ' ~ a.id)|lower }}"
+                                     data-anggota-id="{{ a.id }}"
+                                     data-saldo="{{ a.saldo }}"
+                                     data-nama="{{ a.nama }}"
+                                     onclick="selectTopupAnggota(this)">
+                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ a.nama }}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                        {{ a.pangkat }} · {{ a.id }} · Saldo: {{ a.saldo|rupiah }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                <div id="topupAnggotaNoResults" style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px; display: none;">
+                                    Anggota tidak ditemukan
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="anggota_id" id="topupAnggota" value="" required>
                     </div>
 
                 <div id="topupMemberInfo" style="display: none;" class="mb-2">
@@ -84,12 +106,16 @@
             <div class="card-body" style="padding: 0; max-height: 500px; overflow-y: auto;">
                 {% for a in anggota_data %}
                 <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
+                    {% if a.foto and a.foto != '/static/img/avatar-default.svg' %}
+                    <img src="{{ a.foto }}" alt="{{ a.nama }}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--olive-600); flex-shrink: 0;">
+                    {% else %}
                     <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold-400); flex-shrink: 0;">
                         {{ a.nama[0] }}
                     </div>
+                    {% endif %}
                     <div style="flex: 1;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ a.nama }}</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">{{ a.pangkat }} — {{ a.jabatan }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">{{ a.pangkat }}{% if a.jabatan %} — {{ a.jabatan }}{% endif %}</div>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: {% if a.saldo < 200000 %}var(--red-300){% else %}var(--gold-400){% endif %};">
@@ -469,21 +495,107 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+.anggota-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+.anggota-option {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+.anggota-option:last-child { border-bottom: none; }
+.anggota-option:hover { background: var(--bg-secondary); }
+</style>
 <script>
 let topupTapAnggota = null;
 let topupQRStream = null;
 let topupQRAnimationFrame = null;
 let topupCurrentScanData = '';
+let topupSelectedAnggota = null;
 
-document.getElementById('topupAnggota').addEventListener('change', function() {
+// ============================================================
+// Searchable Topup Anggota Combobox
+// ============================================================
+function openTopupAnggotaDropdown() {
+    document.getElementById('topupAnggotaDropdown').style.display = 'block';
+    filterTopupAnggotaDropdown();
+}
+
+function closeTopupAnggotaDropdown() {
+    document.getElementById('topupAnggotaDropdown').style.display = 'none';
+}
+
+function filterTopupAnggotaDropdown() {
+    const q = (document.getElementById('topupAnggotaSearch').value || '').toLowerCase().trim();
+    const opts = document.querySelectorAll('#topupAnggotaDropdown .anggota-option');
+    let visible = 0;
+    opts.forEach(opt => {
+        const search = opt.dataset.search || '';
+        if (!opt.dataset.anggotaId) {
+            opt.style.display = q ? 'none' : '';
+            return;
+        }
+        const show = !q || search.includes(q);
+        opt.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('topupAnggotaNoResults').style.display = (q && visible === 0) ? 'block' : 'none';
+}
+
+function selectTopupAnggota(el) {
+    const aId = el.dataset.anggotaId;
+    const hidden = document.getElementById('topupAnggota');
+    const search = document.getElementById('topupAnggotaSearch');
     const info = document.getElementById('topupMemberInfo');
-    const opt = this.options[this.selectedIndex];
-    if (this.value) {
+
+    hidden.value = aId;
+
+    if (aId) {
+        topupSelectedAnggota = {
+            id: aId,
+            nama: el.dataset.nama,
+            saldo: parseInt(el.dataset.saldo || 0, 10),
+        };
+        search.value = el.dataset.nama;
         info.style.display = 'block';
-        document.getElementById('topupCurrentSaldo').textContent = 'Rp ' + parseInt(opt.dataset.saldo).toLocaleString('id-ID');
+        document.getElementById('topupCurrentSaldo').textContent = 'Rp ' + topupSelectedAnggota.saldo.toLocaleString('id-ID');
     } else {
+        topupSelectedAnggota = null;
+        search.value = '';
         info.style.display = 'none';
     }
+    closeTopupAnggotaDropdown();
+}
+
+document.addEventListener('click', (e) => {
+    const combo = document.querySelector('.topup-anggota-combo');
+    if (combo && !combo.contains(e.target)) {
+        closeTopupAnggotaDropdown();
+    }
+});
+
+document.getElementById('topupAnggotaSearch').addEventListener('blur', () => {
+    setTimeout(() => {
+        const hidden = document.getElementById('topupAnggota');
+        const search = document.getElementById('topupAnggotaSearch');
+        if (!hidden.value && search.value) {
+            search.value = '';
+        } else if (hidden.value && topupSelectedAnggota) {
+            search.value = topupSelectedAnggota.nama;
+        }
+    }, 200);
 });
 
 // TAP Modal functions

@@ -110,16 +110,39 @@
                 <!-- Select Member -->
                 <div class="form-group">
                     <label class="form-label">Pilih Anggota</label>
-                    <select id="selectAnggota" class="form-select">
-                        <option value="">— Pilih / Tap Kartu —</option>
-                        {% for a in anggota_data %}
-                        {% if a.status_kartu == 'Aktif' %}
-                        <option value="{{ a.kartu_id }}" data-saldo="{{ a.saldo }}" data-nama="{{ a.nama }}" data-pangkat="{{ a.pangkat }}">
-                            {{ a.nama }} — {{ a.pangkat }}
-                        </option>
-                        {% endif %}
-                        {% endfor %}
-                    </select>
+                    <div class="anggota-combo" style="position: relative;">
+                        <input type="text" id="anggotaSearch" class="form-input"
+                               placeholder="Cari nama / NRP / pangkat... atau Tap Kartu"
+                               autocomplete="off"
+                               onfocus="openAnggotaDropdown()"
+                               oninput="filterAnggotaDropdown()">
+                        <i class="bi bi-chevron-down" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
+                        <div id="anggotaDropdown" class="anggota-dropdown" style="display: none;">
+                            <div class="anggota-option" data-search="" data-kartu-id="" data-saldo="0" data-nama="" data-pangkat="" onclick="selectAnggota(this)">
+                                <span style="color: var(--text-muted);">— Pilih / Tap Kartu —</span>
+                            </div>
+                            {% for a in anggota_data %}
+                            {% if a.status_kartu == 'Aktif' %}
+                            <div class="anggota-option"
+                                 data-search="{{ (a.nama ~ ' ' ~ a.nrp ~ ' ' ~ a.pangkat ~ ' ' ~ a.kartu_id)|lower }}"
+                                 data-kartu-id="{{ a.kartu_id }}"
+                                 data-saldo="{{ a.saldo }}"
+                                 data-nama="{{ a.nama }}"
+                                 data-pangkat="{{ a.pangkat }}"
+                                 onclick="selectAnggota(this)">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ a.nama }}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                                    {{ a.pangkat }} · {{ a.kartu_id }} · {{ a.saldo|rupiah }}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                            <div id="anggotaNoResults" style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px; display: none;">
+                                Anggota tidak ditemukan
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectAnggota" value="">
                 </div>
 
                 <!-- Member Info -->
@@ -309,6 +332,36 @@
 </div>
 
 <style>
+/* Anggota searchable combobox */
+.anggota-combo {
+    position: relative;
+}
+.anggota-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+.anggota-option {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s;
+}
+.anggota-option:last-child {
+    border-bottom: none;
+}
+.anggota-option:hover {
+    background: var(--bg-secondary);
+}
+
 /* POS Modal Styles */
 .pos-modal {
     display: none;
@@ -783,27 +836,97 @@ function clearCart() {
     }
 }
 
-// Member selection
-document.getElementById('selectAnggota').addEventListener('change', function() {
+// ============================================================
+// Searchable Anggota Combobox
+// ============================================================
+function openAnggotaDropdown() {
+    document.getElementById('anggotaDropdown').style.display = 'block';
+    filterAnggotaDropdown();
+}
+
+function closeAnggotaDropdown() {
+    document.getElementById('anggotaDropdown').style.display = 'none';
+}
+
+function filterAnggotaDropdown() {
+    const q = (document.getElementById('anggotaSearch').value || '').toLowerCase().trim();
+    const opts = document.querySelectorAll('#anggotaDropdown .anggota-option');
+    let visible = 0;
+    opts.forEach(opt => {
+        const search = opt.dataset.search || '';
+        // Always show the placeholder option only when query is empty
+        if (!opt.dataset.kartuId) {
+            opt.style.display = q ? 'none' : '';
+            return;
+        }
+        const show = !q || search.includes(q);
+        opt.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('anggotaNoResults').style.display = (q && visible === 0) ? 'block' : 'none';
+}
+
+function selectAnggota(el) {
+    const kartuId = el.dataset.kartuId;
+    const hidden = document.getElementById('selectAnggota');
+    const search = document.getElementById('anggotaSearch');
     const info = document.getElementById('memberInfo');
-    const opt = this.options[this.selectedIndex];
-    
-    if (this.value) {
+
+    hidden.value = kartuId;
+
+    if (kartuId) {
         selectedAnggota = {
-            kartu_id: this.value,
-            nama: opt.dataset.nama,
-            pangkat: opt.dataset.pangkat,
-            saldo: parseInt(opt.dataset.saldo)
+            kartu_id: kartuId,
+            nama: el.dataset.nama,
+            pangkat: el.dataset.pangkat,
+            saldo: parseInt(el.dataset.saldo || 0, 10),
         };
+        search.value = el.dataset.nama + ' — ' + el.dataset.pangkat;
         info.style.display = 'block';
         document.getElementById('infoNama').textContent = selectedAnggota.nama;
         document.getElementById('infoPangkat').textContent = selectedAnggota.pangkat;
         document.getElementById('infoSaldo').textContent = 'Rp ' + selectedAnggota.saldo.toLocaleString('id-ID');
     } else {
         selectedAnggota = null;
+        search.value = '';
         info.style.display = 'none';
     }
+
+    closeAnggotaDropdown();
     updateCartUI();
+}
+
+// Pilih lewat kartu_id (dipakai dari TAP modal NFC/QR)
+function setSelectedAnggotaByKartuId(kartuId) {
+    const opt = document.querySelector(`#anggotaDropdown .anggota-option[data-kartu-id="${kartuId}"]`);
+    if (opt) {
+        selectAnggota(opt);
+        return true;
+    }
+    return false;
+}
+
+// Klik di luar combobox → tutup dropdown
+document.addEventListener('click', (e) => {
+    const combo = document.querySelector('.anggota-combo');
+    if (combo && !combo.contains(e.target)) {
+        closeAnggotaDropdown();
+    }
+});
+
+// Reset search field kalau user mengetik tanpa memilih
+document.getElementById('anggotaSearch').addEventListener('blur', () => {
+    setTimeout(() => {
+        const hidden = document.getElementById('selectAnggota');
+        const search = document.getElementById('anggotaSearch');
+        if (!hidden.value && search.value) {
+            // user typed but did not pick anything — clear field
+            search.value = '';
+        } else if (hidden.value && selectedAnggota) {
+            // restore canonical text
+            search.value = selectedAnggota.nama + ' — ' + selectedAnggota.pangkat;
+        }
+    }, 200);
 });
 
 // Process payment (manual select)

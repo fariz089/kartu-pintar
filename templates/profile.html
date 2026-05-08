@@ -16,8 +16,12 @@
         </div>
         <div class="card-body" style="padding: 20px;">
             <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
-                <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--olive-700); display: flex; align-items: center; justify-content: center; border: 2px solid var(--gold-400);">
-                    <i class="bi bi-person-fill" style="font-size: 28px; color: var(--gold-400);"></i>
+                <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--olive-700); display: flex; align-items: center; justify-content: center; border: 2px solid var(--gold-400); overflow: hidden;">
+                    {% if anggota and anggota.foto and anggota.foto != '/static/img/avatar-default.svg' %}
+                    <img src="{{ anggota.foto }}" alt="{{ user.nama }}" style="width:100%;height:100%;object-fit:cover;">
+                    {% else %}
+                    <i class="bi bi-person-fill" style="font-size: 32px; color: var(--gold-400);"></i>
+                    {% endif %}
                 </div>
                 <div>
                     <div style="font-size: 20px; font-weight: 700; color: var(--text-primary);">{{ user.nama }}</div>
@@ -37,7 +41,7 @@
                 <tr style="border-bottom: 1px solid var(--olive-700);">
                     <td style="padding: 10px 0; color: var(--text-muted);">Status</td>
                     <td style="padding: 10px 0;">
-                        <span class="badge badge-berhasil">Aktif</span>
+                        <span class="badge badge-berhasil">{{ 'Aktif' if user.is_active else 'Nonaktif' }}</span>
                     </td>
                 </tr>
                 <tr>
@@ -58,9 +62,18 @@
             <!-- Mini Card Preview -->
             <div style="background: linear-gradient(135deg, var(--olive-800), var(--olive-700)); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--gold-400); position: relative; overflow: hidden;">
                 <div style="position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; background: var(--gold-400); opacity: 0.1;"></div>
-                <div style="font-size: 10px; color: var(--gold-400); letter-spacing: 3px; font-weight: 600;">SMART CARD — POLTEKAD</div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 8px;">{{ anggota.nama }}</div>
-                <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">{{ anggota.pangkat }} — NRP {{ anggota.nrp }}</div>
+                <div style="display: flex; gap: 14px; align-items: flex-start;">
+                    {% if anggota.foto and anggota.foto != '/static/img/avatar-default.svg' %}
+                    <div style="width: 64px; height: 80px; border-radius: 6px; overflow: hidden; border: 1px solid var(--gold-400); flex-shrink: 0; background: var(--bg-primary);">
+                        <img src="{{ anggota.foto }}" alt="{{ anggota.nama }}" style="width:100%;height:100%;object-fit:cover;">
+                    </div>
+                    {% endif %}
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 10px; color: var(--gold-400); letter-spacing: 3px; font-weight: 600;">SMART CARD — POLTEKAD</div>
+                        <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 8px; word-wrap: break-word;">{{ anggota.nama }}</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">{{ anggota.pangkat }} — NRP {{ anggota.nrp }}</div>
+                    </div>
+                </div>
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px;">
                     <div>
                         <div style="font-size: 11px; color: var(--text-muted);">ID KARTU</div>
@@ -106,6 +119,10 @@
                     <td style="padding: 8px 0; color: var(--text-muted);">No. Telepon</td>
                     <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.no_telepon or '-' }}</td>
                 </tr>
+                <tr style="border-bottom: 1px solid var(--olive-700);">
+                    <td style="padding: 8px 0; color: var(--text-muted); vertical-align: top;">Alamat</td>
+                    <td style="padding: 8px 0; color: var(--text-primary);">{{ anggota.alamat or '-' }}</td>
+                </tr>
                 <tr>
                     <td style="padding: 8px 0; color: var(--text-muted);">Status Kartu</td>
                     <td style="padding: 8px 0;">
@@ -127,4 +144,126 @@
     </div>
     {% endif %}
 </div>
+
+{# ===== RIWAYAT HIDUP ===== #}
+{% if anggota %}
+{% set rh = anggota.riwayat_hidup %}
+{% set has_rh = rh and (rh.riwayat_pendidikan_umum or rh.riwayat_pendidikan_militer or rh.riwayat_kepangkatan or rh.riwayat_jabatan or rh.riwayat_penugasan or rh.tanda_jasa or rh.kemampuan_bahasa or rh.riwayat_prestasi or rh.penugasan_luar_negeri or anggota.korp or anggota.sumber_ba or anggota.tmt_tni or anggota.status_pernikahan or anggota.nama_ayah) %}
+
+{% if has_rh %}
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h2><i class="bi bi-journal-text" style="color: var(--gold-400);"></i> Riwayat Hidup</h2>
+    </div>
+    <div class="card-body" style="font-size: 13px;">
+        <style>
+            .rh-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; }
+            .rh-table th { background: var(--bg-input, #1a1a1a); padding: 6px 10px; text-align: left; font-size: 11px; letter-spacing: .5px; color: var(--text-secondary); border: 1px solid var(--border-color); }
+            .rh-table td { padding: 6px 10px; border: 1px solid var(--border-color); color: var(--text-primary); }
+            .rh-title { font-size: 12px; font-weight: 700; color: var(--text-accent); letter-spacing: 1px; text-transform: uppercase; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+            .rh-kv { display: flex; gap: 8px; margin-bottom: 6px; }
+            .rh-k { color: var(--text-secondary); min-width: 140px; }
+            .rh-v { color: var(--text-primary); font-weight: 500; }
+        </style>
+
+        <!-- Data tambahan identitas -->
+        {% if anggota.korp or anggota.sumber_ba or anggota.tmt_tni or anggota.tmt_jabatan or anggota.suku_bangsa %}
+        <div class="rh-title">I. Identitas Kemiliteran</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 24px; margin-bottom: 12px;">
+            {% if anggota.korp %}<div class="rh-kv"><span class="rh-k">Korp</span><span class="rh-v">{{ anggota.korp }}</span></div>{% endif %}
+            {% if anggota.sumber_ba %}<div class="rh-kv"><span class="rh-k">Sumber BA</span><span class="rh-v">{{ anggota.sumber_ba }}</span></div>{% endif %}
+            {% if anggota.tmt_tni %}<div class="rh-kv"><span class="rh-k">TMT TNI</span><span class="rh-v">{{ anggota.tmt_tni }}</span></div>{% endif %}
+            {% if anggota.tmt_jabatan %}<div class="rh-kv"><span class="rh-k">TMT Jabatan</span><span class="rh-v">{{ anggota.tmt_jabatan }}</span></div>{% endif %}
+            {% if anggota.suku_bangsa %}<div class="rh-kv"><span class="rh-k">Suku Bangsa</span><span class="rh-v">{{ anggota.suku_bangsa }}</span></div>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if rh.riwayat_pendidikan_umum %}
+        <div class="rh-title">II. Riwayat Pendidikan Umum</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Jenis</th><th>Tahun</th><th>Nama/Prodi</th><th>Prestasi</th></tr></thead><tbody>
+        {% for r in rh.riwayat_pendidikan_umum %}<tr><td>{{ loop.index }}</td><td>{{ r.jenis }}</td><td>{{ r.tahun }}</td><td>{{ r.nama }}</td><td>{{ r.prestasi or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.riwayat_pendidikan_militer %}
+        <div class="rh-title">II. Riwayat Pendidikan Militer</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Jenis Dikma/Diktuk</th><th>Tahun</th><th>Prestasi</th></tr></thead><tbody>
+        {% for r in rh.riwayat_pendidikan_militer %}<tr><td>{{ loop.index }}</td><td>{{ r.jenis }}</td><td>{{ r.tahun }}</td><td>{{ r.prestasi or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.riwayat_kepangkatan %}
+        <div class="rh-title">V. Riwayat Kepangkatan</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Pangkat</th><th>TMT</th><th>Nomor Kep/Skep</th></tr></thead><tbody>
+        {% for r in rh.riwayat_kepangkatan %}<tr><td>{{ loop.index }}</td><td>{{ r.pangkat }}</td><td>{{ r.tmt }}</td><td>{{ r.nomor_kep or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.riwayat_jabatan %}
+        <div class="rh-title">VII. Riwayat Jabatan</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Jabatan</th><th>TMT</th></tr></thead><tbody>
+        {% for r in rh.riwayat_jabatan %}<tr><td>{{ loop.index }}</td><td>{{ r.jabatan }}</td><td>{{ r.tmt }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.riwayat_penugasan %}
+        <div class="rh-title">III. Riwayat Penugasan Operasi</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Nama Operasi</th><th>Tahun</th><th>Prestasi</th></tr></thead><tbody>
+        {% for r in rh.riwayat_penugasan %}<tr><td>{{ loop.index }}</td><td>{{ r.nama_operasi }}</td><td>{{ r.tahun }}</td><td>{{ r.prestasi or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.penugasan_luar_negeri %}
+        <div class="rh-title">VI. Penugasan Luar Negeri</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Macam Tugas</th><th>Tahun</th><th>Negara</th><th>Prestasi</th></tr></thead><tbody>
+        {% for r in rh.penugasan_luar_negeri %}<tr><td>{{ loop.index }}</td><td>{{ r.macam_tugas }}</td><td>{{ r.tahun }}</td><td>{{ r.negara }}</td><td>{{ r.prestasi or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.tanda_jasa %}
+        <div class="rh-title">IV. Tanda Jasa / Kehormatan</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Nama Tanda Kehormatan</th></tr></thead><tbody>
+        {% for r in rh.tanda_jasa %}<tr><td>{{ loop.index }}</td><td>{{ r.nama }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.kemampuan_bahasa %}
+        <div class="rh-title">V. Kemampuan Bahasa</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Bahasa</th><th>Tingkat</th></tr></thead><tbody>
+        {% for r in rh.kemampuan_bahasa %}<tr><td>{{ loop.index }}</td><td>{{ r.bahasa }}</td><td>{{ r.tingkat }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        {% if rh.riwayat_prestasi %}
+        <div class="rh-title">IX. Riwayat Prestasi</div>
+        <table class="rh-table"><thead><tr><th>#</th><th>Kegiatan</th><th>Tahun</th><th>Tempat</th><th>Deskripsi</th><th>Kep/Piagam</th></tr></thead><tbody>
+        {% for r in rh.riwayat_prestasi %}<tr><td>{{ loop.index }}</td><td>{{ r.kegiatan }}</td><td>{{ r.tahun }}</td><td>{{ r.tempat or '-' }}</td><td>{{ r.deskripsi or '-' }}</td><td>{{ r.kep or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+
+        <!-- Data Keluarga -->
+        {% if anggota.status_pernikahan or anggota.nama_pasangan or anggota.nama_ayah or anggota.nama_ibu %}
+        <div class="rh-title">VIII. Data Keluarga</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 4px 24px; margin-bottom: 8px;">
+            {% if anggota.status_pernikahan %}<div class="rh-kv"><span class="rh-k">Status</span><span class="rh-v">{{ anggota.status_pernikahan }}</span></div>{% endif %}
+            {% if anggota.nama_pasangan %}<div class="rh-kv"><span class="rh-k">Nama Pasangan</span><span class="rh-v">{{ anggota.nama_pasangan }}</span></div>{% endif %}
+            <div class="rh-kv"><span class="rh-k">Jumlah Anak</span><span class="rh-v">{{ anggota.jml_anak or 0 }}</span></div>
+            {% if anggota.alamat_tinggal %}<div class="rh-kv"><span class="rh-k">Alamat Tinggal</span><span class="rh-v">{{ anggota.alamat_tinggal }}</span></div>{% endif %}
+            {% if anggota.nama_ayah %}<div class="rh-kv"><span class="rh-k">Nama Ayah</span><span class="rh-v">{{ anggota.nama_ayah }}</span></div>{% endif %}
+            {% if anggota.nama_ibu %}<div class="rh-kv"><span class="rh-k">Nama Ibu</span><span class="rh-v">{{ anggota.nama_ibu }}</span></div>{% endif %}
+            {% if anggota.alamat_orang_tua %}<div class="rh-kv" style="grid-column: 1/-1;"><span class="rh-k">Alamat Ortu</span><span class="rh-v">{{ anggota.alamat_orang_tua }}</span></div>{% endif %}
+        </div>
+        {% if rh.riwayat_anak %}
+        <table class="rh-table"><thead><tr><th>#</th><th>Nama Anak</th><th>Tanggal Lahir</th></tr></thead><tbody>
+        {% for r in rh.riwayat_anak %}<tr><td>{{ loop.index }}</td><td>{{ r.nama }}</td><td>{{ r.tgl_lahir or '-' }}</td></tr>{% endfor %}
+        </tbody></table>{% endif %}
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h2><i class="bi bi-journal-text" style="color: var(--gold-400);"></i> Riwayat Hidup</h2>
+    </div>
+    <div class="card-body" style="padding: 30px; text-align: center;">
+        <i class="bi bi-info-circle" style="font-size: 36px; color: var(--text-muted); opacity: 0.7;"></i>
+        <p style="color: var(--text-muted); margin-top: 10px; font-size: 13px;">
+            Data riwayat hidup belum diisi. Hubungi administrator untuk melengkapi data.
+        </p>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
 {% endblock %}

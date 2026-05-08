@@ -33,7 +33,11 @@
             </div>
             <div class="id-card-body">
                 <div class="id-card-photo">
+                    {% if anggota.foto and anggota.foto != '/static/img/avatar-default.svg' %}
+                    <img src="{{ anggota.foto }}" alt="Foto {{ anggota.nama }}">
+                    {% else %}
                     <i class="bi bi-person-fill"></i>
+                    {% endif %}
                 </div>
                 <div class="id-card-info">
                     <div class="info-row">
@@ -57,10 +61,12 @@
             <div class="id-card-footer">
                 <div class="id-card-nfc">
                     <i class="bi bi-nfc"></i>
-                    <span>NFC: {{ anggota.nfc_uid }}</span>
+                    <span>NFC: {{ anggota.nfc_uid or '-' }}</span>
                 </div>
                 <div style="width: 50px; height: 50px; background: #fff; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                    <i class="bi bi-qr-code" style="font-size: 32px; color: #000;"></i>
+                    <img src="/api/qrcode?data={{ (anggota.qr_data or anggota.id)|urlencode }}"
+                         alt="QR" style="width:100%;height:100%;object-fit:contain;"
+                         onerror="this.outerHTML='<i class=&quot;bi bi-qr-code&quot; style=&quot;font-size: 32px; color: #000;&quot;></i>';">
                 </div>
             </div>
         </div>

@@ -28,6 +28,8 @@
                 <option value="">Semua Status</option>
                 <option value="Aktif">Aktif</option>
                 <option value="Hilang">Hilang</option>
+                <option value="Nonaktif">Nonaktif</option>
+                <option value="Diblokir">Diblokir</option>
             </select>
         </div>
     </div>
@@ -38,7 +40,7 @@
     <div class="card-header">
         <h2>
             <i class="bi bi-people-fill" style="color: var(--gold-400); margin-right: 8px;"></i>
-            {{ anggota_data|length }} Anggota Terdaftar
+            <span id="anggotaCount">{{ anggota_data|length }}</span> Anggota Terdaftar
         </h2>
     </div>
     <div class="table-wrapper">
@@ -63,9 +65,13 @@
                     </td>
                     <td>
                         <div style="display: flex; align-items: center; gap: 10px;">
+                            {% if a.foto and a.foto != '/static/img/avatar-default.svg' %}
+                            <img src="{{ a.foto }}" alt="{{ a.nama }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--olive-600); flex-shrink: 0;">
+                            {% else %}
                             <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--gold-400); flex-shrink: 0;">
                                 {{ a.nama[0] }}
                             </div>
+                            {% endif %}
                             <span style="color: var(--text-primary); font-weight: 600;">{{ a.nama }}</span>
                         </div>
                     </td>
@@ -88,6 +94,13 @@
                             <a href="{{ url_for('anggota_edit', anggota_id=a.id) }}" class="btn btn-sm btn-secondary" title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            <button type="button"
+                                    class="btn btn-sm"
+                                    style="background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3);"
+                                    title="Hapus"
+                                    onclick="confirmDelete('{{ a.id }}', {{ a.nama|tojson }})">
+                                <i class="bi bi-trash"></i>
+                            </button>
                             {% endif %}
                         </div>
                     </td>
@@ -98,6 +111,44 @@
     </div>
 </div>
 
+{% if session.get('role') == 'admin' %}
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card, #1a1a1a); border:1px solid var(--border-color); border-radius:12px; padding:24px; max-width:420px; width:90%; box-shadow:0 12px 48px rgba(0,0,0,0.6);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+            <div style="width:44px; height:44px; border-radius:50%; background:rgba(231,76,60,0.13); display:flex; align-items:center; justify-content:center;">
+                <i class="bi bi-exclamation-triangle-fill" style="font-size:22px; color:#e74c3c;"></i>
+            </div>
+            <div>
+                <h3 style="margin:0; font-size:16px; color:var(--text-primary);">Hapus Anggota?</h3>
+                <p style="margin:4px 0 0; font-size:12px; color:var(--text-muted);">Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+        </div>
+        <p style="font-size:14px; color:var(--text-secondary); margin-bottom:8px;">
+            Anda akan menghapus anggota:
+        </p>
+        <div style="background:var(--bg-input,#0e0e0e); padding:12px 14px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:18px;">
+            <div id="deleteName" style="font-weight:700; color:var(--text-primary); font-size:14px;">-</div>
+            <div id="deleteId" style="font-family:monospace; font-size:12px; color:var(--text-accent); margin-top:4px;">-</div>
+        </div>
+        <div style="background:rgba(231,76,60,0.08); border:1px solid rgba(231,76,60,0.2); border-radius:6px; padding:10px 12px; font-size:12px; color:var(--text-secondary); margin-bottom:18px;">
+            <i class="bi bi-info-circle" style="color:#e74c3c;"></i>
+            Semua data transaksi dan riwayat lokasi terkait juga akan ikut terhapus. Akun login (jika ada) akan dilepas dari anggota.
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">
+                <i class="bi bi-x-lg"></i> Batal
+            </button>
+            <form id="deleteForm" method="POST" action="" style="margin:0;">
+                <button type="submit" class="btn" style="background:#e74c3c; color:#fff; border:none;">
+                    <i class="bi bi-trash"></i> Ya, Hapus
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block extra_js %}
@@ -106,10 +157,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const rows = document.querySelectorAll('.anggota-row');
+    const countEl = document.getElementById('anggotaCount');
+    const totalCount = rows.length;
 
     function filterRows() {
-        const q = searchInput.value.toLowerCase();
+        const q = searchInput.value.toLowerCase().trim();
         const status = statusFilter.value;
+        let visible = 0;
 
         rows.forEach(row => {
             const nama = row.dataset.nama;
@@ -119,13 +173,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const matchSearch = !q || nama.includes(q) || nrp.includes(q) || pangkat.includes(q);
             const matchStatus = !status || rowStatus === status;
+            const show = matchSearch && matchStatus;
 
-            row.style.display = (matchSearch && matchStatus) ? '' : 'none';
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
         });
+
+        if (countEl) {
+            if (q || status) {
+                countEl.textContent = visible + ' / ' + totalCount;
+            } else {
+                countEl.textContent = totalCount;
+            }
+        }
     }
 
     searchInput.addEventListener('input', filterRows);
     statusFilter.addEventListener('change', filterRows);
+
+    {% if session.get('role') == 'admin' %}
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeDeleteModal();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+            closeDeleteModal();
+        }
+    });
+    {% endif %}
 });
+
+{% if session.get('role') == 'admin' %}
+function confirmDelete(kartuId, nama) {
+    document.getElementById('deleteName').textContent = nama;
+    document.getElementById('deleteId').textContent = kartuId;
+    document.getElementById('deleteForm').action = '/anggota/delete/' + encodeURIComponent(kartuId);
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+{% endif %}
 </script>
 {% endblock %}

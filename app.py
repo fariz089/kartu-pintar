@@ -592,6 +592,22 @@ def register_routes(app):
                         return redirect(url_for('anggota_edit', anggota_id=anggota_id))
                     a.nrp = new_nrp
 
+                # Kartu ID — bisa diubah, cek unique. Kalau berubah, redirect ke URL baru di akhir.
+                old_kartu_id = a.kartu_id
+                new_kartu_id = request.form.get('kartu_id', a.kartu_id).strip()
+                kartu_id_changed = False
+                if new_kartu_id and new_kartu_id != a.kartu_id:
+                    existing_k = Anggota.query.filter(
+                        Anggota.kartu_id == new_kartu_id,
+                        Anggota.id != a.id
+                    ).first()
+                    if existing_k:
+                        flash(f'ID Kartu "{new_kartu_id}" sudah dipakai anggota lain ({existing_k.nama}).', 'danger')
+                        db.session.rollback()
+                        return redirect(url_for('anggota_edit', anggota_id=anggota_id))
+                    a.kartu_id = new_kartu_id
+                    kartu_id_changed = True
+
                 a.pangkat = request.form.get('pangkat', a.pangkat).strip()
                 a.satuan = request.form.get('satuan', a.satuan).strip()
                 a.jabatan = request.form.get('jabatan', a.jabatan).strip()
@@ -615,7 +631,18 @@ def register_routes(app):
                 mili_raw = _clean(request.form.get('mili_id', ''))
                 a.mili_id = extract_mili_id(mili_raw) if mili_raw else None
                 qr_input = _clean(request.form.get('qr_data', ''))
-                a.qr_data = qr_input or a.kartu_id
+                # Cek unique untuk qr_data juga, supaya nggak bentrok
+                final_qr = qr_input or a.kartu_id
+                if final_qr and final_qr != a.qr_data:
+                    existing_qr = Anggota.query.filter(
+                        Anggota.qr_data == final_qr,
+                        Anggota.id != a.id
+                    ).first()
+                    if existing_qr:
+                        flash(f'QR Data "{final_qr}" sudah dipakai anggota lain ({existing_qr.nama}).', 'danger')
+                        db.session.rollback()
+                        return redirect(url_for('anggota_edit', anggota_id=anggota_id))
+                a.qr_data = final_qr
                 # ENUM NOT NULL: kalau kosong, pertahankan nilai lama
                 status_raw = request.form.get('status_kartu', '').strip()
                 if status_raw in ('Aktif', 'Nonaktif', 'Hilang', 'Diblokir'):
@@ -694,7 +721,8 @@ def register_routes(app):
 
                 db.session.commit()
                 flash('Data anggota berhasil diperbarui!', 'success')
-                return redirect(url_for('anggota_detail', anggota_id=anggota_id))
+                # Pakai kartu_id terbaru (mungkin sudah berubah) untuk redirect
+                return redirect(url_for('anggota_detail', anggota_id=a.kartu_id))
             except Exception as e:
                 db.session.rollback()
                 flash(f'Gagal: {str(e)}', 'danger')
@@ -1023,7 +1051,8 @@ def register_routes(app):
         anggota_raw = Anggota.query.order_by(Anggota.nama).all()
         anggota_data = [{
             'id': a.kartu_id, 'nrp': a.nrp, 'nama': a.nama,
-            'pangkat': a.pangkat, 'saldo': a.saldo, 'status_kartu': a.status_kartu,
+            'pangkat': a.pangkat, 'jabatan': a.jabatan, 'foto': a.foto,
+            'saldo': a.saldo, 'status_kartu': a.status_kartu,
         } for a in anggota_raw]
         return render_template('admin/topup.html', anggota_data=anggota_data)
 
