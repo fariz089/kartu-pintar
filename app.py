@@ -55,6 +55,22 @@ def register_context_processors(app):
     def inject_now():
         return {'now': datetime.now()}
 
+    @app.context_processor
+    def inject_current_user_foto():
+        """Expose current logged-in user's foto (via their anggota) to all templates.
+        Used by base.html sidebar footer avatar.
+        """
+        foto = None
+        try:
+            uid = session.get('user_id')
+            if uid:
+                u = User.query.get(uid)
+                if u and u.anggota and u.anggota.foto and u.anggota.foto != DEFAULT_FOTO_PATH:
+                    foto = u.anggota.foto
+        except Exception:
+            foto = None
+        return {'current_user_foto': foto}
+
 
 # ============================================================
 # AUTH DECORATORS
@@ -742,15 +758,35 @@ def register_routes(app):
             flash('Data anggota tidak ditemukan.', 'danger')
             return redirect(url_for('anggota_list'))
         try:
-            Transaksi.query.filter_by(anggota_id=a.id).delete()
-            LokasiHistory.query.filter_by(anggota_id=a.id).delete()
-            User.query.filter_by(anggota_id=a.id).update({'anggota_id': None})
+            nama = a.nama  # save before delete
+            # 1. Hapus TransaksiItem dulu (FK ke Transaksi)
+            #    Bulk delete tidak trigger cascade ORM, jadi kita hapus manual.
+            trx_ids = [t.id for t in Transaksi.query.filter_by(anggota_id=a.id).all()]
+            if trx_ids:
+                TransaksiItem.query.filter(TransaksiItem.transaksi_id.in_(trx_ids)).delete(synchronize_session=False)
+                Transaksi.query.filter_by(anggota_id=a.id).delete(synchronize_session=False)
+            # 2. Hapus LokasiHistory
+            LokasiHistory.query.filter_by(anggota_id=a.id).delete(synchronize_session=False)
+            # 3. Hapus FindMyTracker terkait
+            FindMyTracker.query.filter_by(anggota_id=a.id).delete(synchronize_session=False)
+            # 4. Lepaskan akun User dari anggota (jangan hapus user-nya, supaya history login tetap)
+            User.query.filter_by(anggota_id=a.id).update({'anggota_id': None}, synchronize_session=False)
+            # 5. Hapus foto file jika bukan default
+            try:
+                if a.foto and a.foto != DEFAULT_FOTO_PATH and a.foto.startswith('/static/uploads/'):
+                    upload_folder = app.config.get('UPLOAD_FOLDER', 'static/uploads')
+                    foto_path = os.path.join(upload_folder, a.foto.rsplit('/', 1)[-1])
+                    if os.path.exists(foto_path):
+                        os.remove(foto_path)
+            except Exception:
+                pass  # foto cleanup is optional
+            # 6. Akhirnya hapus anggota
             db.session.delete(a)
             db.session.commit()
-            flash(f'Anggota {a.nama} berhasil dihapus.', 'success')
+            flash(f'Anggota {nama} berhasil dihapus.', 'success')
         except Exception as e:
             db.session.rollback()
-            flash(f'Gagal: {str(e)}', 'danger')
+            flash(f'Gagal menghapus anggota: {str(e)}', 'danger')
         return redirect(url_for('anggota_list'))
 
     @app.route('/anggota/<anggota_id>/buat-user', methods=['POST'])

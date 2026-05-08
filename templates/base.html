@@ -196,7 +196,11 @@
         <div class="sidebar-footer">
             <div class="user-card">
                 <div class="user-avatar">
+                    {% if current_user_foto %}
+                    <img src="{{ current_user_foto }}" alt="{{ session.get('nama', 'User') }}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                    {% else %}
                     <i class="bi bi-person-circle"></i>
+                    {% endif %}
                 </div>
                 <div class="user-info">
                     <span class="user-name">{{ session.get('nama', 'User') }}</span>

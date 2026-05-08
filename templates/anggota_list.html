@@ -95,10 +95,11 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <button type="button"
-                                    class="btn btn-sm"
+                                    class="btn btn-sm btn-delete-anggota"
                                     style="background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3);"
                                     title="Hapus"
-                                    onclick="confirmDelete('{{ a.id }}', {{ a.nama|tojson }})">
+                                    data-kartu-id="{{ a.id }}"
+                                    data-nama="{{ a.nama }}">
                                 <i class="bi bi-trash"></i>
                             </button>
                             {% endif %}
@@ -203,13 +204,23 @@ document.addEventListener('DOMContentLoaded', () => {
             closeDeleteModal();
         }
     });
+
+    // Event delegation untuk tombol delete (lebih reliable daripada inline onclick)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-delete-anggota');
+        if (!btn) return;
+        e.preventDefault();
+        const kartuId = btn.dataset.kartuId;
+        const nama = btn.dataset.nama;
+        confirmDelete(kartuId, nama);
+    });
     {% endif %}
 });
 
 {% if session.get('role') == 'admin' %}
 function confirmDelete(kartuId, nama) {
-    document.getElementById('deleteName').textContent = nama;
-    document.getElementById('deleteId').textContent = kartuId;
+    document.getElementById('deleteName').textContent = nama || '-';
+    document.getElementById('deleteId').textContent = kartuId || '-';
     document.getElementById('deleteForm').action = '/anggota/delete/' + encodeURIComponent(kartuId);
     document.getElementById('deleteModal').style.display = 'flex';
 }
