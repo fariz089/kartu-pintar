@@ -105,6 +105,7 @@ class User(db.Model):
             'is_active': self.is_active,
             'anggota_id': self.anggota_id,
             'totp_enabled': self.totp_enabled,
+            'backup_codes_remaining': self.remaining_backup_codes(),
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
         }
 

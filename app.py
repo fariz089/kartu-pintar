@@ -1053,6 +1053,36 @@ def register_routes(app):
         flash(f'Password user {u.username} berhasil direset.', 'success')
         return redirect(url_for('user_list'))
 
+    @app.route('/users/reset-totp/<int:user_id>', methods=['POST'])
+    @admin_required
+    def user_reset_totp(user_id):
+        """
+        Reset 2FA / Authenticator untuk user (kasus HP hilang atau ganti HP).
+        Setelah reset:
+          - totp_secret dihapus
+          - totp_enabled = False
+          - backup codes dihapus
+        Saat user login berikutnya, sistem akan memintanya setup ulang dari awal.
+        """
+        u = User.query.get_or_404(user_id)
+        # Cegah admin nge-reset 2FA dirinya sendiri lewat panel ini
+        # (kalau admin lupa HP, harus pakai CLI `manage.py reset-totp` agar tetap aman).
+        if u.id == session.get('user_id'):
+            flash('Tidak dapat reset 2FA akun sendiri lewat panel. Gunakan CLI: python manage.py reset-totp', 'warning')
+            return redirect(url_for('user_edit', user_id=user_id))
+
+        had_totp = u.totp_enabled
+        u.totp_secret = None
+        u.totp_enabled = False
+        u.totp_backup_codes = None
+        db.session.commit()
+
+        if had_totp:
+            flash(f'2FA user {u.username} berhasil direset. User akan diminta setup ulang Authenticator saat login berikutnya.', 'success')
+        else:
+            flash(f'User {u.username} belum mengaktifkan 2FA — tidak ada yang perlu direset.', 'info')
+        return redirect(url_for('user_edit', user_id=user_id))
+
     @app.route('/users/bulk-create', methods=['POST'])
     @admin_required
     def user_bulk_create():
