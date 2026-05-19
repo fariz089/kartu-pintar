@@ -1332,43 +1332,176 @@ a:hover {
 }
 
 .login-demo {
-    margin-top: 20px;
+    /* Removed: demo credentials no longer shown. Keeping selector for backwards-compat. */
+    display: none;
+}
+
+/* ============================================================
+   PASSWORD INPUT WITH SHOW/HIDE TOGGLE
+   ============================================================ */
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap .form-input {
+    padding-right: 44px;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.password-toggle:hover,
+.password-toggle:focus {
+    color: var(--text-accent);
+    background: rgba(197, 164, 78, 0.08);
+    outline: none;
+}
+
+.password-toggle i {
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* ============================================================
+   TOTP / 2FA PAGES
+   ============================================================ */
+.totp-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+@media (min-width: 720px) {
+    .totp-grid {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+    }
+}
+
+.totp-qr {
+    background: #ffffff;
+    border-radius: 12px;
     padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: 10px;
+    text-align: center;
     border: 1px solid var(--border-color);
 }
 
-.login-demo h4 {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
+.totp-qr img {
+    width: 100%;
+    max-width: 220px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }
 
-.login-demo .demo-cred {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
+.totp-secret {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    font-family: monospace;
     font-size: 13px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.login-demo .demo-cred:last-child {
-    border-bottom: none;
-}
-
-.login-demo .demo-cred span:first-child {
-    color: var(--text-secondary);
-}
-
-.login-demo .demo-cred code {
     color: var(--text-accent);
+    word-break: break-all;
+    text-align: center;
+    letter-spacing: 1px;
+}
+
+.totp-steps {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.totp-steps ol {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.totp-steps strong {
+    color: var(--text-accent);
+}
+
+.totp-code-input {
+    font-family: monospace;
+    font-size: 22px;
+    letter-spacing: 12px;
+    text-align: center;
+    padding-left: 12px;
+}
+
+.totp-code-input::placeholder {
+    letter-spacing: 6px;
+}
+
+.backup-codes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.backup-code {
+    font-family: monospace;
+    font-size: 15px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-align: center;
+    color: var(--text-accent);
+    letter-spacing: 2px;
+}
+
+.totp-warning {
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    color: #ff8a95;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.totp-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.totp-link {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    text-decoration: underline;
+    cursor: pointer;
     font-size: 12px;
-    background: var(--bg-card);
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: 4px;
+}
+
+.totp-link:hover {
+    color: var(--text-accent);
 }
 
 /* ============================================================

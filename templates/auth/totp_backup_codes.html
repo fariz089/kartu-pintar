@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Simpan Backup Codes{% endblock %}
+
+{% block auth_content %}
+<div class="login-page">
+    <div class="login-box" style="width: 560px;">
+        <div class="login-header">
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="width: 64px; height: 64px; object-fit: contain;">
+            </div>
+            <h1>BACKUP CODES</h1>
+            <p>SIMPAN DI TEMPAT AMAN</p>
+        </div>
+
+        <div class="login-card">
+            <h2>KODE CADANGAN</h2>
+
+            <div class="totp-warning">
+                <strong>⚠️ Simpan kode ini sekarang.</strong>
+                Setelah halaman ini ditutup, kode tidak akan ditampilkan lagi.
+                Gunakan kode cadangan untuk login bila HP Anda hilang atau aplikasi authenticator terhapus.
+                Setiap kode hanya dapat dipakai <strong>satu kali</strong>.
+            </div>
+
+            <div class="backup-codes-grid" id="codes-grid">
+                {% for c in codes %}
+                <div class="backup-code">{{ c }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="totp-actions">
+                <button type="button" class="btn btn-secondary" id="btn-copy">
+                    <i class="bi bi-clipboard"></i> Salin Semua
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-print">
+                    <i class="bi bi-printer"></i> Cetak
+                </button>
+            </div>
+
+            <form method="POST" action="{{ url_for('totp_backup_codes') }}" style="margin-top:20px;">
+                <label style="display:flex; gap:8px; align-items:flex-start; color: var(--text-secondary); font-size:13px; cursor:pointer; user-select:none;">
+                    <input type="checkbox" id="ack" style="margin-top:3px;">
+                    <span>Saya sudah menyimpan kode cadangan di tempat yang aman.</span>
+                </label>
+                <button type="submit" class="btn btn-primary login-btn" id="btn-continue" disabled style="margin-top:14px;">
+                    <i class="bi bi-check2-circle"></i>
+                    Lanjut ke Dashboard
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var ack = document.getElementById('ack');
+    var go = document.getElementById('btn-continue');
+    ack.addEventListener('change', function () { go.disabled = !ack.checked; });
+
+    var codes = Array.from(document.querySelectorAll('.backup-code')).map(function (el) { return el.textContent.trim(); });
+
+    document.getElementById('btn-copy').addEventListener('click', function () {
+        var text = codes.join('\n');
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function () {
+                this.innerHTML = '<i class="bi bi-check2"></i> Tersalin';
+            }.bind(this));
+        }
+    });
+
+    document.getElementById('btn-print').addEventListener('click', function () {
+        var w = window.open('', '_blank');
+        var html = '<html><head><title>Backup Codes</title>' +
+            '<style>body{font-family:monospace;padding:40px;}h2{margin-bottom:24px;}ul{list-style:none;padding:0;font-size:18px;line-height:2;}</style>' +
+            '</head><body><h2>SMART CARD — Backup Codes ({{ user.username }})</h2>' +
+            '<p>Tanggal dibuat: ' + new Date().toLocaleString() + '</p>' +
+            '<ul>' + codes.map(function (c) { return '<li>• ' + c + '</li>'; }).join('') + '</ul>' +
+            '<p style="margin-top:30px;font-size:12px;">Setiap kode hanya bisa dipakai satu kali. Simpan di tempat aman.</p>' +
+            '</body></html>';
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+    });
+})();
+</script>
+{% endblock %}

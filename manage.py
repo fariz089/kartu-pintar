@@ -6,6 +6,8 @@ Usage:
     python manage.py drop-db       # Drop all tables (WARNING!)
     python manage.py reset-db      # Drop + Create + Seed
     python manage.py create-user   # Create a new user
+    python manage.py migrate-totp  # Add 2FA columns to existing users table
+    python manage.py reset-totp    # Reset 2FA for a specific user
 """
 
 import sys
@@ -95,6 +97,49 @@ def create_user():
         print(f"   Role     : {role}")
 
 
+def migrate_totp():
+    """Add TOTP columns to existing users table (idempotent)."""
+    app = create_app()
+    with app.app_context():
+        from sqlalchemy import text, inspect
+        insp = inspect(db.engine)
+        cols = {c['name'] for c in insp.get_columns('users')}
+        statements = []
+        if 'totp_secret' not in cols:
+            statements.append("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64) NULL")
+        if 'totp_enabled' not in cols:
+            statements.append("ALTER TABLE users ADD COLUMN totp_enabled TINYINT(1) NOT NULL DEFAULT 0")
+        if 'totp_backup_codes' not in cols:
+            statements.append("ALTER TABLE users ADD COLUMN totp_backup_codes TEXT NULL")
+        if not statements:
+            print("✅ Kolom TOTP sudah ada. Tidak ada perubahan.")
+            return
+        with db.engine.begin() as conn:
+            for s in statements:
+                print("   →", s)
+                conn.execute(text(s))
+        print("✅ Migrasi TOTP selesai.")
+
+
+def reset_totp():
+    """Reset 2FA for a specific user (so they re-enroll on next login)."""
+    app = create_app()
+    with app.app_context():
+        username = input("Username yang 2FA-nya direset: ").strip()
+        if not username:
+            print("❌ Username wajib")
+            return
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            print(f"❌ User '{username}' tidak ditemukan")
+            return
+        user.totp_secret = None
+        user.totp_enabled = False
+        user.totp_backup_codes = None
+        db.session.commit()
+        print(f"✅ 2FA untuk '{username}' di-reset. User akan setup ulang saat login berikutnya.")
+
+
 def show_help():
     print(__doc__)
 
@@ -106,6 +151,8 @@ if __name__ == '__main__':
         'seed': seed,
         'reset-db': reset_db,
         'create-user': create_user,
+        'migrate-totp': migrate_totp,
+        'reset-totp': reset_totp,
         'help': show_help,
     }
 

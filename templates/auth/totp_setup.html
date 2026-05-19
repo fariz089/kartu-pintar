@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Aktifkan 2FA{% endblock %}
+
+{% block auth_content %}
+<div class="login-page">
+    <div class="login-box" style="width: 640px;">
+        <div class="login-header">
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" style="width: 64px; height: 64px; object-fit: contain;">
+            </div>
+            <h1>AKTIFKAN 2FA</h1>
+            <p>SMART CARD — POLTEKAD</p>
+        </div>
+
+        <div class="login-card">
+            <h2>SETUP AUTHENTICATOR</h2>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}" style="margin-bottom: 16px;">
+                <i class="bi bi-{% if category == 'danger' %}exclamation-triangle-fill{% else %}info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="totp-warning">
+                <i class="bi bi-shield-lock-fill"></i>
+                <strong>Akun ini memerlukan verifikasi 2 langkah.</strong>
+                Scan QR di bawah dengan aplikasi <strong>Google Authenticator</strong>,
+                <strong>Microsoft Authenticator</strong>, atau <strong>Authy</strong>, lalu masukkan kode 6 digit yang ditampilkan aplikasi.
+            </div>
+
+            <div class="totp-grid">
+                <div class="totp-qr">
+                    <img src="{{ qr_uri }}" alt="QR Code TOTP">
+                    <div class="totp-secret" title="Manual entry key">{{ secret }}</div>
+                </div>
+
+                <div>
+                    <div class="totp-steps">
+                        <strong>Langkah aktivasi:</strong>
+                        <ol>
+                            <li>Buka aplikasi Authenticator di HP Anda.</li>
+                            <li>Pilih <em>Tambah akun</em> → <em>Scan QR code</em>.</li>
+                            <li>Scan QR di sebelah, atau ketik manual kode di bawah QR.</li>
+                            <li>Masukkan 6 digit yang muncul di aplikasi pada kolom berikut.</li>
+                        </ol>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('totp_setup') }}" style="margin-top:18px;">
+                        <div class="form-group">
+                            <label class="form-label">Kode Verifikasi</label>
+                            <input type="text" name="code" class="form-input totp-code-input"
+                                   inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+                                   maxlength="6" placeholder="000000" required autofocus>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary login-btn">
+                            <i class="bi bi-shield-check"></i>
+                            Aktifkan & Lanjutkan
+                        </button>
+
+                        <div class="totp-actions" style="justify-content:center;">
+                            <a href="{{ url_for('totp_cancel') }}" class="totp-link">
+                                <i class="bi bi-arrow-left"></i> Batalkan & login ulang
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

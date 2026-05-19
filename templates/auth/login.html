@@ -33,7 +33,13 @@
 
                 <div class="form-group">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-input" placeholder="Masukkan password" required>
+                    <div class="password-wrap">
+                        <input type="password" id="login-password" name="password" class="form-input" placeholder="Masukkan password" required>
+                        <button type="button" class="password-toggle" id="login-password-toggle"
+                                aria-label="Tampilkan password" tabindex="-1">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary login-btn">
@@ -41,19 +47,25 @@
                     Masuk
                 </button>
             </form>
-
-            <div class="login-demo">
-                <h4>Demo Credentials</h4>
-                <div class="demo-cred">
-                    <span>Admin</span>
-                    <span><code>admin</code> / <code>admin123</code></span>
-                </div>
-                <div class="demo-cred">
-                    <span>User</span>
-                    <span><code>user1</code> / <code>user123</code></span>
-                </div>
-            </div>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var input = document.getElementById('login-password');
+    var btn = document.getElementById('login-password-toggle');
+    if (!input || !btn) return;
+    btn.addEventListener('click', function () {
+        var showing = input.getAttribute('type') === 'text';
+        input.setAttribute('type', showing ? 'password' : 'text');
+        btn.setAttribute('aria-label', showing ? 'Tampilkan password' : 'Sembunyikan password');
+        var icon = btn.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('bi-eye', showing);
+            icon.classList.toggle('bi-eye-slash', !showing);
+        }
+    });
+})();
+</script>
 {% endblock %}

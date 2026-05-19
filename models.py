@@ -35,6 +35,10 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     anggota_id = db.Column(db.Integer, db.ForeignKey('anggota.id'), nullable=True)
+    # 2FA / TOTP
+    totp_secret = db.Column(db.String(64), nullable=True)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    totp_backup_codes = db.Column(db.Text, nullable=True)  # JSON list of hashed backup codes
     created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
@@ -47,6 +51,50 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    # ------- TOTP / Backup-codes helpers -------
+    @staticmethod
+    def _normalize_backup_code(code):
+        """Canonical form: uppercase, no spaces/dashes."""
+        return (code or '').strip().replace('-', '').replace(' ', '').upper()
+
+    def set_backup_codes(self, codes_plain):
+        """Stores HASHED backup codes; returns plain list (caller shows ONCE).
+        Codes are hashed in normalized form so the user can type them with or
+        without dashes / in any case."""
+        norm = [self._normalize_backup_code(c) for c in codes_plain]
+        hashed = [generate_password_hash(c, method='pbkdf2:sha256') for c in norm]
+        self.totp_backup_codes = json.dumps(hashed)
+        return codes_plain
+
+    def consume_backup_code(self, code):
+        """Verify & remove a backup code on use. Returns True if valid."""
+        if not self.totp_backup_codes:
+            return False
+        try:
+            hashed = json.loads(self.totp_backup_codes)
+        except Exception:
+            return False
+        norm = self._normalize_backup_code(code)
+        if not norm:
+            return False
+        for h in list(hashed):
+            try:
+                if check_password_hash(h, norm):
+                    hashed.remove(h)
+                    self.totp_backup_codes = json.dumps(hashed)
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def remaining_backup_codes(self):
+        if not self.totp_backup_codes:
+            return 0
+        try:
+            return len(json.loads(self.totp_backup_codes))
+        except Exception:
+            return 0
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -56,6 +104,7 @@ class User(db.Model):
             'email': self.email,
             'is_active': self.is_active,
             'anggota_id': self.anggota_id,
+            'totp_enabled': self.totp_enabled,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
         }
 

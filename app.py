@@ -13,6 +13,15 @@ import jwt as pyjwt
 
 from config import config_map
 from models import db, User, Anggota, Transaksi, TransaksiItem, LokasiHistory, MenuKantin, KategoriProduk, Produk, FindMyTracker
+from totp_utils import (
+    generate_secret as totp_generate_secret,
+    verify_totp,
+    build_otpauth_uri,
+    qr_data_uri as totp_qr_data_uri,
+    qr_data_uri_png as totp_qr_data_uri_png,
+    generate_backup_codes,
+    ISSUER as TOTP_ISSUER,
+)
 
 
 def create_app(config_name=None):
@@ -367,17 +376,134 @@ def register_routes(app):
                 if not user.is_active:
                     flash('Akun dinonaktifkan. Hubungi administrator.', 'danger')
                     return render_template('auth/login.html')
-                session.permanent = True
-                session['user_id'] = user.id
-                session['user'] = user.username
-                session['role'] = user.role
-                session['nama'] = user.nama
-                session['anggota_id'] = user.anggota_id
-                flash(f'Selamat datang, {user.nama}!', 'success')
-                return redirect(url_for('dashboard'))
+                # Password OK — but NOT logged in yet. Require TOTP step.
+                session.pop('user_id', None)
+                session['pending_user_id'] = user.id
+                session['pending_user_ts'] = int(datetime.utcnow().timestamp())
+                if user.totp_enabled and user.totp_secret:
+                    return redirect(url_for('totp_verify'))
+                return redirect(url_for('totp_setup'))
             else:
                 flash('Username atau password salah.', 'danger')
         return render_template('auth/login.html')
+
+    # --------- TOTP / 2FA pages (web) ---------
+    def _get_pending_user():
+        """Return User with active pending-login session, else None."""
+        uid = session.get('pending_user_id')
+        ts = session.get('pending_user_ts', 0)
+        # Pending login valid for 10 minutes
+        if not uid or (int(datetime.utcnow().timestamp()) - int(ts) > 600):
+            session.pop('pending_user_id', None)
+            session.pop('pending_user_ts', None)
+            return None
+        return User.query.get(uid)
+
+    def _finalize_login(user):
+        """Promote pending-login session into a full session."""
+        session.pop('pending_user_id', None)
+        session.pop('pending_user_ts', None)
+        session.permanent = True
+        session['user_id'] = user.id
+        session['user'] = user.username
+        session['role'] = user.role
+        session['nama'] = user.nama
+        session['anggota_id'] = user.anggota_id
+
+    @app.route('/totp/setup', methods=['GET', 'POST'])
+    def totp_setup():
+        user = _get_pending_user()
+        if not user:
+            flash('Sesi login berakhir. Silakan login ulang.', 'warning')
+            return redirect(url_for('login'))
+
+        # Already enabled? jump straight to verify
+        if user.totp_enabled and user.totp_secret:
+            return redirect(url_for('totp_verify'))
+
+        # Generate a fresh secret per setup attempt and stash it in session
+        # (don't commit to user.totp_secret until user proves they can produce a code).
+        secret = session.get('totp_setup_secret')
+        if not secret:
+            secret = totp_generate_secret()
+            session['totp_setup_secret'] = secret
+
+        otpauth = build_otpauth_uri(secret, user.username)
+        qr = totp_qr_data_uri(otpauth)
+
+        if request.method == 'POST':
+            code = request.form.get('code', '').strip()
+            if not verify_totp(secret, code):
+                flash('Kode salah. Pastikan jam HP sinkron, lalu coba lagi.', 'danger')
+                return render_template('auth/totp_setup.html',
+                                       secret=secret, qr_uri=qr, otpauth=otpauth, user=user)
+            # Code valid → activate
+            user.totp_secret = secret
+            user.totp_enabled = True
+            plain_codes = generate_backup_codes(8)
+            user.set_backup_codes(plain_codes)
+            db.session.commit()
+            session.pop('totp_setup_secret', None)
+            # Stash plain codes for the next page only (show once).
+            session['totp_show_backup_codes'] = plain_codes
+            return redirect(url_for('totp_backup_codes'))
+
+        return render_template('auth/totp_setup.html',
+                               secret=secret, qr_uri=qr, otpauth=otpauth, user=user)
+
+    @app.route('/totp/backup-codes', methods=['GET', 'POST'])
+    def totp_backup_codes():
+        user = _get_pending_user()
+        codes = session.get('totp_show_backup_codes')
+        if not user or not codes:
+            return redirect(url_for('login'))
+        if request.method == 'POST':
+            # User acknowledges — finalize login
+            session.pop('totp_show_backup_codes', None)
+            _finalize_login(user)
+            flash(f'2FA aktif. Selamat datang, {user.nama}!', 'success')
+            return redirect(url_for('dashboard'))
+        return render_template('auth/totp_backup_codes.html', codes=codes, user=user)
+
+    @app.route('/totp/verify', methods=['GET', 'POST'])
+    def totp_verify():
+        user = _get_pending_user()
+        if not user:
+            flash('Sesi login berakhir. Silakan login ulang.', 'warning')
+            return redirect(url_for('login'))
+        if not (user.totp_enabled and user.totp_secret):
+            return redirect(url_for('totp_setup'))
+
+        if request.method == 'POST':
+            code = request.form.get('code', '').strip()
+            use_backup = request.form.get('use_backup') == '1'
+            ok = False
+            via_backup = False
+            if use_backup:
+                ok = user.consume_backup_code(code)
+                via_backup = ok
+                if ok:
+                    db.session.commit()
+            else:
+                ok = verify_totp(user.totp_secret, code)
+            if not ok:
+                flash('Kode tidak valid.', 'danger')
+                return render_template('auth/totp_verify.html', user=user)
+            _finalize_login(user)
+            if via_backup:
+                flash(f'Login berhasil dengan kode cadangan. Sisa: {user.remaining_backup_codes()}.', 'warning')
+            else:
+                flash(f'Selamat datang, {user.nama}!', 'success')
+            return redirect(url_for('dashboard'))
+        return render_template('auth/totp_verify.html', user=user)
+
+    @app.route('/totp/cancel')
+    def totp_cancel():
+        session.pop('pending_user_id', None)
+        session.pop('pending_user_ts', None)
+        session.pop('totp_setup_secret', None)
+        session.pop('totp_show_backup_codes', None)
+        return redirect(url_for('login'))
 
     @app.route('/logout')
     def logout():
@@ -1611,16 +1737,148 @@ def register_api_routes(app):
         if user and user.check_password(data.get('password', '')):
             if not user.is_active:
                 return jsonify({'success': False, 'message': 'Akun dinonaktifkan'}), 403
-            token = generate_jwt_token(user)
-            user_data = user.to_dict()
-            if user.anggota:
-                user_data['anggota'] = user.anggota.to_dict()
+            # Password OK — but require TOTP step before issuing the real JWT.
+            # Issue a short-lived "pending" token usable only on /api/auth/totp/* endpoints.
+            from flask import current_app
+            pending_payload = {
+                'user_id': user.id,
+                'username': user.username,
+                'purpose': 'totp_pending',
+                'exp': datetime.utcnow() + timedelta(minutes=10),
+                'iat': datetime.utcnow(),
+            }
+            pending_token = pyjwt.encode(pending_payload, current_app.config['SECRET_KEY'], algorithm='HS256')
             return jsonify({
                 'success': True,
-                'token': token,
-                'data': user_data,
+                'requires_totp': True,
+                'totp_setup_required': not (user.totp_enabled and user.totp_secret),
+                'pending_token': pending_token,
+                'username': user.username,
+                'nama': user.nama,
             })
         return jsonify({'success': False, 'message': 'Username atau password salah'}), 401
+
+    def _decode_pending_token():
+        """Decode the short-lived totp_pending token; return (user, error_response)."""
+        from flask import current_app
+        auth = request.headers.get('Authorization', '')
+        token = auth[7:] if auth.startswith('Bearer ') else None
+        if not token:
+            return None, (jsonify({'success': False, 'message': 'Pending token required'}), 401)
+        try:
+            payload = pyjwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        except pyjwt.ExpiredSignatureError:
+            return None, (jsonify({'success': False, 'message': 'Sesi login berakhir, silakan login ulang'}), 401)
+        except pyjwt.InvalidTokenError:
+            return None, (jsonify({'success': False, 'message': 'Token tidak valid'}), 401)
+        if payload.get('purpose') != 'totp_pending':
+            return None, (jsonify({'success': False, 'message': 'Token tidak valid untuk operasi 2FA'}), 401)
+        user = User.query.get(payload.get('user_id'))
+        if not user or not user.is_active:
+            return None, (jsonify({'success': False, 'message': 'User tidak ditemukan'}), 404)
+        return user, None
+
+    @app.route('/api/auth/totp/setup', methods=['GET'])
+    def api_totp_setup():
+        """Returns a fresh TOTP secret + QR (PNG data URI). Client shows it to user.
+        The secret is NOT yet stored on the user — only stored after successful verify."""
+        user, err = _decode_pending_token()
+        if err:
+            return err
+        if user.totp_enabled and user.totp_secret:
+            return jsonify({'success': False, 'message': '2FA sudah aktif. Lakukan verifikasi.'}), 400
+        # Issue a setup-scoped token that carries the proposed secret in the JWT itself,
+        # so the API stays stateless and the client doesn't need to remember it raw.
+        from flask import current_app
+        secret = totp_generate_secret()
+        otpauth = build_otpauth_uri(secret, user.username)
+        setup_payload = {
+            'user_id': user.id,
+            'purpose': 'totp_setup',
+            'secret': secret,
+            'exp': datetime.utcnow() + timedelta(minutes=10),
+            'iat': datetime.utcnow(),
+        }
+        setup_token = pyjwt.encode(setup_payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+        return jsonify({
+            'success': True,
+            'setup_token': setup_token,
+            'secret': secret,            # show as fallback (manual entry)
+            'otpauth_uri': otpauth,
+            'qr_png': totp_qr_data_uri_png(otpauth),
+            'issuer': TOTP_ISSUER,
+            'account': user.username,
+        })
+
+    @app.route('/api/auth/totp/verify', methods=['POST'])
+    def api_totp_verify():
+        """Verify a TOTP code. Two modes:
+        - Setup mode: client sends Authorization: Bearer <setup_token> + {code} → activates 2FA, returns full JWT + backup codes.
+        - Verify mode: client sends Authorization: Bearer <pending_token> + {code} OR {backup_code} → returns full JWT.
+        """
+        data = request.get_json() or {}
+        code = (data.get('code') or '').strip()
+        backup_code = (data.get('backup_code') or '').strip()
+
+        from flask import current_app
+        auth = request.headers.get('Authorization', '')
+        token = auth[7:] if auth.startswith('Bearer ') else None
+        if not token:
+            return jsonify({'success': False, 'message': 'Token diperlukan'}), 401
+        try:
+            payload = pyjwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        except pyjwt.ExpiredSignatureError:
+            return jsonify({'success': False, 'message': 'Sesi login berakhir, silakan login ulang'}), 401
+        except pyjwt.InvalidTokenError:
+            return jsonify({'success': False, 'message': 'Token tidak valid'}), 401
+
+        purpose = payload.get('purpose')
+        user = User.query.get(payload.get('user_id'))
+        if not user or not user.is_active:
+            return jsonify({'success': False, 'message': 'User tidak ditemukan'}), 404
+
+        backup_codes_plain = None  # only set during setup
+        via_backup = False
+
+        if purpose == 'totp_setup':
+            secret = payload.get('secret')
+            if not secret or not verify_totp(secret, code):
+                return jsonify({'success': False, 'message': 'Kode salah. Pastikan jam HP sinkron.'}), 400
+            user.totp_secret = secret
+            user.totp_enabled = True
+            backup_codes_plain = generate_backup_codes(8)
+            user.set_backup_codes(backup_codes_plain)
+            db.session.commit()
+        elif purpose == 'totp_pending':
+            if not (user.totp_enabled and user.totp_secret):
+                return jsonify({'success': False, 'message': '2FA belum di-setup. Panggil /api/auth/totp/setup dulu.'}), 400
+            if backup_code:
+                if not user.consume_backup_code(backup_code):
+                    return jsonify({'success': False, 'message': 'Backup code tidak valid'}), 400
+                via_backup = True
+                db.session.commit()
+            else:
+                if not verify_totp(user.totp_secret, code):
+                    return jsonify({'success': False, 'message': 'Kode salah'}), 400
+        else:
+            return jsonify({'success': False, 'message': 'Token tidak valid untuk operasi 2FA'}), 401
+
+        # Issue full JWT now
+        full_token = generate_jwt_token(user)
+        user_data = user.to_dict()
+        if user.anggota:
+            user_data['anggota'] = user.anggota.to_dict()
+        resp = {
+            'success': True,
+            'token': full_token,
+            'data': user_data,
+        }
+        if backup_codes_plain:
+            resp['backup_codes'] = backup_codes_plain  # show ONCE
+        if via_backup:
+            resp['via_backup'] = True
+            resp['backup_codes_remaining'] = user.remaining_backup_codes()
+        return jsonify(resp)
 
     @app.route('/api/auth/me', methods=['GET'])
     @jwt_required
