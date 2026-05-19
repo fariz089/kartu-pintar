@@ -77,7 +77,9 @@ def qr_data_uri(otpauth_uri: str, scale: int = 6) -> str:
     qr = segno.make(otpauth_uri, error="m")
     import io
     buf = io.BytesIO()
-    qr.save(buf, kind="svg", scale=scale, dark="#FFFFFF", light=None, border=2)
+    # Black-on-white: maximum scanner compatibility. The container .totp-qr
+    # already provides a white card, so we keep the same scheme inside the SVG.
+    qr.save(buf, kind="svg", scale=scale, dark="#000000", light="#FFFFFF", border=2)
     svg_bytes = buf.getvalue()
     b64 = base64.b64encode(svg_bytes).decode("ascii")
     return f"data:image/svg+xml;base64,{b64}"
