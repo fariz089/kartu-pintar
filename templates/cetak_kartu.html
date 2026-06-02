@@ -172,7 +172,7 @@ function renderMemberList(){
     });
     if(filtered.length === 0){ list.innerHTML = '<div class="member-row text-muted">Tidak ada hasil</div>'; return; }
     list.innerHTML = filtered.map(m => `
-        <div class="member-row ${selectedIds.has(m.id)?'selected':''}" onclick="toggleMember(${JSON.stringify(m.id)})">
+        <div class="member-row ${selectedIds.has(m.id)?'selected':''}" data-id="${escapeHtml(m.id)}">
             <input type="checkbox" ${selectedIds.has(m.id)?'checked':''} readonly tabindex="-1" style="pointer-events:none;">
             <div style="flex:1;">
                 <div style="font-weight:600;">${escapeHtml(m.pangkat)} ${escapeHtml(m.nama)}</div>
@@ -203,9 +203,19 @@ function renderChips(){
     const chosen = ALL_MEMBERS.filter(m => selectedIds.has(m.id));
     wrap.innerHTML = chosen.map(m => `
         <span class="selected-chip">${escapeHtml(m.nama)}
-            <button onclick="toggleMember(${JSON.stringify(m.id)})"><i class="bi bi-x"></i></button>
+            <button type="button" class="chip-remove" data-id="${escapeHtml(m.id)}"><i class="bi bi-x"></i></button>
         </span>`).join('') || '<span class="text-muted">Belum ada anggota dipilih</span>';
 }
+
+// Event delegation — aman untuk ID apa pun (mengandung tanda hubung, dll)
+document.getElementById('memberList').addEventListener('click', function(e){
+    const row = e.target.closest('.member-row');
+    if(row && row.dataset.id) toggleMember(row.dataset.id);
+});
+document.getElementById('selectedChips').addEventListener('click', function(e){
+    const btn = e.target.closest('.chip-remove');
+    if(btn && btn.dataset.id) toggleMember(btn.dataset.id);
+});
 
 function applyPaperSize(){
     const size = document.getElementById('paperSize').value;
