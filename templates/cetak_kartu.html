@@ -173,7 +173,7 @@ function renderMemberList(){
     if(filtered.length === 0){ list.innerHTML = '<div class="member-row text-muted">Tidak ada hasil</div>'; return; }
     list.innerHTML = filtered.map(m => `
         <div class="member-row ${selectedIds.has(m.id)?'selected':''}" onclick="toggleMember(${JSON.stringify(m.id)})">
-            <input type="checkbox" ${selectedIds.has(m.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMember(${JSON.stringify(m.id)})">
+            <input type="checkbox" ${selectedIds.has(m.id)?'checked':''} readonly tabindex="-1" style="pointer-events:none;">
             <div style="flex:1;">
                 <div style="font-weight:600;">${escapeHtml(m.pangkat)} ${escapeHtml(m.nama)}</div>
                 <div style="font-size:0.8em;color:#6c757d;">NRP ${escapeHtml(m.nrp)} · ${escapeHtml(m.id)}</div>
