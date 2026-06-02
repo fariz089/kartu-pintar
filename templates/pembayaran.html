@@ -5,93 +5,52 @@
 
 {% block content %}
 <div class="section-header">
-    <p class="text-muted" style="font-size: 14px;">Point of Sale - Pilih produk dan bayar dengan Smart Card</p>
+    <p class="text-muted" style="font-size: 14px;">Kasir manual — masukkan nama item & harga, lalu bayar dengan Smart Card</p>
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 400px; gap: 24px;">
-    <!-- Left: Products & Cart -->
+    <!-- Left: Manual item entry + cart -->
     <div>
-        <!-- Category Filter -->
         <div class="card mb-2">
-            <div class="card-body" style="padding: 12px 16px;">
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                    <button type="button" class="btn btn-secondary btn-sm category-btn active" data-kategori="" onclick="filterKategori(this, '')">
-                        <i class="bi bi-grid"></i> Semua
-                    </button>
-                    {% for k in kategori_data %}
-                    <button type="button" class="btn btn-secondary btn-sm category-btn" data-kategori="{{ k.id }}" onclick="filterKategori(this, {{ k.id }})">
-                        <i class="{{ k.icon }}"></i> {{ k.nama }}
-                    </button>
-                    {% endfor %}
-                    <div style="flex: 1;"></div>
-                    <input type="text" id="searchProduk" class="form-input" placeholder="Cari produk..." 
-                        style="width: 200px; margin: 0; padding: 8px 12px;" onkeyup="searchProduk(this.value)">
-                </div>
-            </div>
-        </div>
-
-        <!-- Products Grid -->
-        <div class="card">
             <div class="card-header">
-                <h2><i class="bi bi-box-seam-fill" style="color: var(--gold-400);"></i> Pilih Produk</h2>
+                <h2><i class="bi bi-plus-square-fill" style="color: var(--gold-400);"></i> Tambah Item</h2>
             </div>
-            <div class="card-body" style="padding: 0;">
-                <div id="produkGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 16px; max-height: 400px; overflow-y: auto;">
-                    {% for p in produk_data %}
-                    <div class="produk-item" data-id="{{ p.id }}" data-nama="{{ p.nama }}" data-harga="{{ p.harga }}" 
-                        data-stok="{{ p.stok }}" data-kategori="{{ p.kategori_id }}" data-search="{{ p.nama|lower }} {{ p.kode|lower }}"
-                        onclick="addToCart({{ p.id }}, '{{ p.nama }}', {{ p.harga }}, {{ p.stok }})"
-                        style="background: var(--bg-secondary); border-radius: 10px; padding: 14px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;">
-                        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">{{ p.kode }}</div>
-                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">{{ p.nama }}</div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold-400);">{{ p.harga|rupiah }}</div>
-                            <div style="font-size: 10px; color: {% if p.stok <= p.stok_minimum %}var(--red-300){% else %}var(--text-muted){% endif %};">
-                                {{ p.stok }} {{ p.satuan }}
-                            </div>
-                        </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr 140px 90px auto; gap: 10px; align-items: end;">
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Nama Item</label>
+                        <input type="text" id="itemNama" class="form-input" placeholder="cth: Nasi Goreng" autocomplete="off"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('itemHarga').focus();}">
                     </div>
-                    {% endfor %}
-                </div>
-                {% if not produk_data %}
-                <div style="padding: 40px; text-align: center; color: var(--text-muted);">
-                    <i class="bi bi-box" style="font-size: 36px; opacity: 0.5;"></i>
-                    <p>Belum ada produk</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Right: Cart & Payment -->
-    <div>
-        <!-- NFC/QR Tap -->
-        <div class="scan-card mb-2" onclick="showTapModal()" style="padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div class="scan-card-icon" style="margin: 0; width: 50px; height: 50px;">
-                    <i class="bi bi-nfc" style="font-size: 24px;"></i>
-                </div>
-                <div style="text-align: left;">
-                    <h3 style="margin: 0; font-size: 16px;">TAP UNTUK BAYAR</h3>
-                    <p style="margin: 4px 0 0; font-size: 12px;">NFC atau Scan QR Code</p>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Harga (Rp)</label>
+                        <input type="number" id="itemHarga" class="form-input" placeholder="0" min="0" step="500" autocomplete="off"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();addManualItem();}">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="form-label">Qty</label>
+                        <input type="number" id="itemQty" class="form-input" value="1" min="1" autocomplete="off"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();addManualItem();}">
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="addManualItem()" style="height: 42px;">
+                        <i class="bi bi-plus-lg"></i> Tambah
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Shopping Cart -->
-        <div class="card mb-2">
+        <!-- Cart -->
+        <div class="card">
             <div class="card-header">
                 <h2><i class="bi bi-cart-fill" style="color: var(--gold-400);"></i> Keranjang</h2>
             </div>
             <div class="card-body" style="padding: 0;">
-                <div id="cartItems" style="max-height: 250px; overflow-y: auto;">
-                    <div id="cartEmpty" style="padding: 30px; text-align: center; color: var(--text-muted);">
-                        <i class="bi bi-cart" style="font-size: 32px; opacity: 0.5;"></i>
-                        <p style="margin-top: 8px;">Keranjang kosong</p>
+                <div id="cartItems" style="min-height: 120px;">
+                    <div id="cartEmpty" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                        <i class="bi bi-cart" style="font-size: 36px; opacity: 0.4;"></i>
+                        <p style="margin-top: 8px;">Belum ada item. Tambahkan item di atas.</p>
                     </div>
                 </div>
-                
-                <!-- Total -->
                 <div style="padding: 16px; border-top: 2px solid var(--border-color); background: var(--bg-secondary);">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="color: var(--text-muted); font-size: 14px;">Total (<span id="cartCount">0</span> item)</span>
@@ -100,14 +59,28 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Payment Section -->
+    <!-- Right: Member & Payment -->
+    <div>
+        <!-- Tap to select -->
+        <div class="scan-card mb-2" onclick="showTapModal()" style="padding: 18px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="scan-card-icon" style="margin: 0; width: 46px; height: 46px;">
+                    <i class="bi bi-nfc" style="font-size: 22px;"></i>
+                </div>
+                <div style="text-align: left;">
+                    <h3 style="margin: 0; font-size: 15px;">TAP / SCAN KARTU</h3>
+                    <p style="margin: 4px 0 0; font-size: 12px;">Pilih anggota via NFC / QR</p>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">
                 <h2><i class="bi bi-credit-card-fill" style="color: var(--gold-400);"></i> Pembayaran</h2>
             </div>
             <div class="card-body">
-                <!-- Select Member -->
                 <div class="form-group">
                     <label class="form-label">Pilih Anggota</label>
                     <div class="anggota-combo" style="position: relative;">
@@ -118,7 +91,7 @@
                                oninput="filterAnggotaDropdown()">
                         <i class="bi bi-chevron-down" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"></i>
                         <div id="anggotaDropdown" class="anggota-dropdown" style="display: none;">
-                            <div class="anggota-option" data-search="" data-kartu-id="" data-saldo="0" data-nama="" data-pangkat="" onclick="selectAnggota(this)">
+                            <div class="anggota-option" data-search="" data-kartu-id="" data-saldo="0" data-hutang="0" data-nama="" data-pangkat="" onclick="selectAnggota(this)">
                                 <span style="color: var(--text-muted);">— Pilih / Tap Kartu —</span>
                             </div>
                             {% for a in anggota_data %}
@@ -127,12 +100,13 @@
                                  data-search="{{ (a.nama ~ ' ' ~ a.nrp ~ ' ' ~ a.pangkat ~ ' ' ~ a.kartu_id)|lower }}"
                                  data-kartu-id="{{ a.kartu_id }}"
                                  data-saldo="{{ a.saldo }}"
+                                 data-hutang="{{ a.hutang }}"
                                  data-nama="{{ a.nama }}"
                                  data-pangkat="{{ a.pangkat }}"
                                  onclick="selectAnggota(this)">
                                 <div style="font-weight: 600; color: var(--text-primary); font-size: 13px;">{{ a.nama }}</div>
                                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-                                    {{ a.pangkat }} · {{ a.kartu_id }} · {{ a.saldo|rupiah }}
+                                    {{ a.pangkat }} · {{ a.kartu_id }} · Saldo {{ a.saldo|rupiah }}{% if a.hutang and a.hutang > 0 %} · <span style="color: var(--red-300);">Hutang {{ a.hutang|rupiah }}</span>{% endif %}
                                 </div>
                             </div>
                             {% endif %}
@@ -145,7 +119,6 @@
                     <input type="hidden" id="selectAnggota" value="">
                 </div>
 
-                <!-- Member Info -->
                 <div id="memberInfo" style="display: none; margin-bottom: 16px;">
                     <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border-color);">
                         <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--olive-600); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -154,6 +127,7 @@
                         <div style="flex: 1;">
                             <div style="font-weight: 600; color: var(--text-primary);" id="infoNama">-</div>
                             <div style="font-size: 12px; color: var(--text-muted);" id="infoPangkat">-</div>
+                            <div style="font-size: 11px; color: var(--red-300); display: none;" id="infoHutang">-</div>
                         </div>
                         <div style="text-align: right;">
                             <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Saldo</div>
@@ -177,41 +151,61 @@
     </div>
 </div>
 
-<!-- Tap Modal (NFC/QR) -->
+<!-- Hutang Confirmation Modal -->
+<div id="hutangModal" class="pos-modal">
+    <div class="pos-modal-content" style="max-width: 400px;">
+        <div class="pos-modal-header">
+            <h3><i class="bi bi-exclamation-triangle-fill"></i> Saldo Tidak Cukup</h3>
+            <button class="pos-modal-close" onclick="closeHutangModal()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="pos-modal-body">
+            <div class="tap-member-info" style="margin-bottom: 16px;">
+                <h4 id="hutangNama" style="color: var(--text-primary);">-</h4>
+            </div>
+            <div class="tap-payment-summary">
+                <div class="tap-summary-row"><span>Total Belanja</span><span id="hutangTotal">Rp 0</span></div>
+                <div class="tap-summary-row"><span>Saldo Tersedia</span><span id="hutangSaldo">Rp 0</span></div>
+                <div class="tap-summary-row highlight"><span>Kekurangan (jadi hutang)</span><span id="hutangKurang" style="color: var(--red-300);">Rp 0</span></div>
+            </div>
+            <div class="tap-warning" style="display: flex;">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>Saldo akan dipakai sampai habis, sisa kekurangan dicatat sebagai <b>hutang</b>.</span>
+            </div>
+            <p style="text-align: center; color: var(--text-primary); margin-bottom: 16px;">Apakah customer yakin ingin menambahkan kekurangan ke hutang?</p>
+            <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmHutang()">
+                <i class="bi bi-check-circle-fill"></i> Ya, Tambahkan ke Hutang
+            </button>
+            <button type="button" class="btn btn-secondary mt-1 w-100" onclick="closeHutangModal()">
+                <i class="bi bi-x-lg"></i> Batal
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Tap Modal (NFC/QR) for selecting member -->
 <div id="tapModal" class="pos-modal">
     <div class="pos-modal-content">
-        <!-- Step 1: Scan Method Selection -->
         <div id="tapStep1">
             <div class="pos-modal-header">
-                <h3><i class="bi bi-credit-card"></i> Pilih Metode Pembayaran</h3>
+                <h3><i class="bi bi-credit-card"></i> Pilih Metode Scan</h3>
                 <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
             </div>
             <div class="pos-modal-body">
-                <div class="tap-total-preview">
-                    <span>Total Belanja</span>
-                    <span id="tapPreviewTotal">Rp 0</span>
-                </div>
-                
                 <div class="tap-method-grid">
                     <div class="tap-method-card" onclick="showNFCInput()">
-                        <div class="tap-method-icon nfc">
-                            <i class="bi bi-nfc"></i>
-                        </div>
+                        <div class="tap-method-icon nfc"><i class="bi bi-nfc"></i></div>
                         <h4>NFC / Manual</h4>
                         <p>Tap kartu atau input ID</p>
                     </div>
                     <div class="tap-method-card" onclick="showQRScanner()">
-                        <div class="tap-method-icon qr">
-                            <i class="bi bi-qr-code-scan"></i>
-                        </div>
+                        <div class="tap-method-icon qr"><i class="bi bi-qr-code-scan"></i></div>
                         <h4>Scan QR</h4>
                         <p>Gunakan kamera</p>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Step 1b: NFC Input -->
+
         <div id="tapNFCInput" style="display: none;">
             <div class="pos-modal-header">
                 <button class="pos-modal-back" onclick="backToMethodSelect()"><i class="bi bi-arrow-left"></i></button>
@@ -225,17 +219,13 @@
                 </div>
                 <h4>Tempelkan Kartu ke NFC Reader</h4>
                 <p style="color: var(--text-muted); margin-bottom: 20px;">NFC Reader akan otomatis input saat kartu di-tap</p>
-                
                 <div class="scan-input-group">
                     <input type="text" id="manualScan" class="form-input" placeholder="Masukkan NFC UID / ID Kartu..." autocomplete="off">
-                    <button type="button" class="btn btn-primary" onclick="processTap()">
-                        <i class="bi bi-search"></i>
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="processTap()"><i class="bi bi-search"></i></button>
                 </div>
             </div>
         </div>
-        
-        <!-- Step 1c: QR Scanner -->
+
         <div id="tapQRScanner" style="display: none;">
             <div class="pos-modal-header">
                 <button class="pos-modal-back" onclick="backToMethodSelect()"><i class="bi bi-arrow-left"></i></button>
@@ -244,622 +234,189 @@
             </div>
             <div class="pos-modal-body">
                 <div id="posQRContainer">
-                    <div id="posQRLoading" class="qr-loading">
-                        <div class="spinner"></div>
-                        <p>Memuat kamera...</p>
-                    </div>
+                    <div id="posQRLoading" class="qr-loading"><div class="spinner"></div><p>Memuat kamera...</p></div>
                     <video id="posQRVideo" playsinline></video>
-                    <div class="qr-overlay">
-                        <div class="qr-frame"></div>
-                    </div>
+                    <div class="qr-overlay"><div class="qr-frame"></div></div>
                     <div id="posQRError" class="qr-error" style="display: none;">
                         <i class="bi bi-camera-video-off"></i>
                         <p>Tidak dapat mengakses kamera</p>
                         <button class="btn btn-secondary btn-sm" onclick="startPOSQRScanner()">Coba Lagi</button>
                     </div>
                 </div>
-                
                 <div class="scan-divider"><span>atau input manual</span></div>
-                
                 <div class="scan-input-group">
                     <input type="text" id="qrManualInput" class="form-input" placeholder="Masukkan QR Data..." autocomplete="off">
-                    <button type="button" class="btn btn-primary" onclick="processQRInput()">
-                        <i class="bi bi-search"></i>
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="processQRInput()"><i class="bi bi-search"></i></button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Step 2: Confirm Payment -->
-        <div id="tapStep2" style="display: none;">
-            <div class="pos-modal-header">
-                <h3><i class="bi bi-person-check"></i> Konfirmasi Pembayaran</h3>
-                <button class="pos-modal-close" onclick="closeTapModal()"><i class="bi bi-x-lg"></i></button>
-            </div>
-            <div class="pos-modal-body">
-                <div class="tap-member-info">
-                    <div class="tap-member-avatar">
-                        <i class="bi bi-person-fill"></i>
-                    </div>
-                    <h4 id="tapNama">-</h4>
-                    <p id="tapPangkat">-</p>
-                </div>
-                
-                <div class="tap-saldo-display">
-                    <span>Saldo</span>
-                    <span id="tapSaldo">Rp 0</span>
-                </div>
-                
-                <div class="tap-payment-summary">
-                    <div class="tap-summary-row">
-                        <span>Total Belanja</span>
-                        <span id="tapTotal">Rp 0</span>
-                    </div>
-                    <div class="tap-summary-row highlight" id="tapSisaRow">
-                        <span>Sisa Saldo</span>
-                        <span id="tapSisa">Rp 0</span>
-                    </div>
-                </div>
-                
-                <div id="tapWarning" class="tap-warning" style="display: none;">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span>Saldo tidak mencukupi!</span>
-                </div>
-                
-                <button type="button" class="btn btn-primary btn-lg w-100" onclick="confirmTapPayment()" id="tapConfirmBtn">
-                    <i class="bi bi-check-circle-fill"></i> Bayar Sekarang
-                </button>
-                <button type="button" class="btn btn-secondary mt-1 w-100" onclick="backToMethodSelect()">
-                    <i class="bi bi-arrow-left"></i> Pilih Kartu Lain
-                </button>
-            </div>
-        </div>
-
-        <!-- Step 3: Success -->
-        <div id="tapSuccess" style="display: none;">
-            <div class="pos-modal-body" style="padding: 40px 24px;">
-                <div class="tap-success-icon">
-                    <i class="bi bi-check-lg"></i>
-                </div>
-                <h3 style="color: var(--green-400); margin-bottom: 8px;">Pembayaran Berhasil!</h3>
-                <p style="color: var(--text-muted); margin-bottom: 20px;" id="successMessage">-</p>
-                <button type="button" class="btn btn-primary w-100" onclick="location.reload()">
-                    <i class="bi bi-arrow-repeat"></i> Transaksi Baru
-                </button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* Anggota searchable combobox */
-.anggota-combo {
-    position: relative;
-}
-.anggota-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    max-height: 280px;
-    overflow-y: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    z-index: 100;
-}
-.anggota-option {
-    padding: 10px 14px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--border-color);
-    transition: background 0.15s;
-}
-.anggota-option:last-child {
-    border-bottom: none;
-}
-.anggota-option:hover {
-    background: var(--bg-secondary);
-}
+<!-- Success Modal -->
+<div id="successModal" class="pos-modal">
+    <div class="pos-modal-content" style="max-width: 400px;">
+        <div class="pos-modal-body" style="padding: 40px 24px; text-align: center;">
+            <div class="tap-success-icon"><i class="bi bi-check-lg"></i></div>
+            <h3 style="color: var(--green-400); margin-bottom: 8px;" id="successTitle">Pembayaran Berhasil!</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;" id="successMessage">-</p>
+            <button type="button" class="btn btn-primary w-100" onclick="location.reload()">
+                <i class="bi bi-arrow-repeat"></i> Transaksi Baru
+            </button>
+        </div>
+    </div>
+</div>
 
-/* POS Modal Styles */
-.pos-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+<style>
+.anggota-combo { position: relative; }
+.anggota-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-card); border: 1px solid var(--border-color);
+    border-radius: 8px; max-height: 280px; overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); z-index: 100;
 }
-.pos-modal.active {
-    display: flex;
-}
-.pos-modal-content {
-    background: var(--bg-card);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 420px;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-}
-.pos-modal-header {
-    display: flex;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
-    gap: 12px;
-}
-.pos-modal-header h3 {
-    flex: 1;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 18px;
-    color: var(--gold-400);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.pos-modal-close, .pos-modal-back {
-    background: var(--bg-secondary);
-    border: none;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    cursor: pointer;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
+.anggota-option { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background 0.15s; }
+.anggota-option:last-child { border-bottom: none; }
+.anggota-option:hover { background: var(--bg-secondary); }
+.pos-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.pos-modal.active { display: flex; }
+.pos-modal-content { background: var(--bg-card); border-radius: 16px; width: 100%; max-width: 420px; border: 1px solid var(--border-color); overflow: hidden; }
+.pos-modal-header { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color); gap: 12px; }
+.pos-modal-header h3 { flex: 1; font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold-400); display: flex; align-items: center; gap: 8px; }
+.pos-modal-close, .pos-modal-back { background: var(--bg-secondary); border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pos-modal-close:hover { background: var(--red-500); color: white; }
 .pos-modal-back:hover { background: var(--olive-600); color: var(--gold-400); }
-.pos-modal-body {
-    padding: 24px 20px;
-}
-
-/* Tap Preview Total */
-.tap-total-preview {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: 12px;
-    margin-bottom: 20px;
-}
-.tap-total-preview span:first-child {
-    color: var(--text-muted);
-    font-size: 13px;
-}
-.tap-total-preview span:last-child {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 24px;
-    color: var(--gold-400);
-}
-
-/* Method Grid */
-.tap-method-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-.tap-method-card {
-    background: var(--bg-secondary);
-    border: 2px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.tap-method-card:hover {
-    border-color: var(--gold-400);
-    transform: translateY(-2px);
-}
-.tap-method-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    margin: 0 auto 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-}
-.tap-method-icon.nfc {
-    background: linear-gradient(135deg, var(--gold-400), var(--gold-500));
-    color: var(--bg-dark);
-}
-.tap-method-icon.qr {
-    background: linear-gradient(135deg, #4a7a8c, #5a9aac);
-    color: white;
-}
-.tap-method-card h4 {
-    color: var(--text-primary);
-    font-size: 14px;
-    margin-bottom: 4px;
-}
-.tap-method-card p {
-    color: var(--text-muted);
-    font-size: 12px;
-}
-
-/* NFC Animation */
-.nfc-animation {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto 16px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+.pos-modal-body { padding: 24px 20px; }
+.tap-method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tap-method-card { background: var(--bg-secondary); border: 2px solid var(--border-color); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.tap-method-card:hover { border-color: var(--gold-400); transform: translateY(-2px); }
+.tap-method-icon { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.tap-method-icon.nfc { background: linear-gradient(135deg, var(--gold-400), var(--gold-500)); color: var(--bg-dark); }
+.tap-method-icon.qr { background: linear-gradient(135deg, #4a7a8c, #5a9aac); color: white; }
+.tap-method-card h4 { color: var(--text-primary); font-size: 14px; margin-bottom: 4px; }
+.tap-method-card p { color: var(--text-muted); font-size: 12px; }
+.nfc-animation { width: 100px; height: 100px; margin: 0 auto 16px; position: relative; display: flex; align-items: center; justify-content: center; }
 .nfc-animation i { font-size: 40px; color: var(--gold-400); z-index: 1; }
-.nfc-pulse {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: var(--gold-400);
-    opacity: 0.2;
-    animation: nfcPulse 2s ease-out infinite;
-}
-@keyframes nfcPulse {
-    0% { transform: scale(0.8); opacity: 0.4; }
-    100% { transform: scale(1.4); opacity: 0; }
-}
-
-/* Scan Input */
-.scan-input-group {
-    display: flex;
-    gap: 8px;
-}
+.nfc-pulse { position: absolute; width: 100%; height: 100%; border-radius: 50%; background: var(--gold-400); opacity: 0.2; animation: nfcPulse 2s ease-out infinite; }
+@keyframes nfcPulse { 0% { transform: scale(0.8); opacity: 0.4; } 100% { transform: scale(1.4); opacity: 0; } }
+.scan-input-group { display: flex; gap: 8px; }
 .scan-input-group .form-input { flex: 1; }
-.scan-divider {
-    display: flex;
-    align-items: center;
-    margin: 16px 0;
-    color: var(--text-muted);
-    font-size: 12px;
-}
-.scan-divider::before, .scan-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border-color);
-}
+.scan-divider { display: flex; align-items: center; margin: 16px 0; color: var(--text-muted); font-size: 12px; }
+.scan-divider::before, .scan-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
 .scan-divider span { padding: 0 12px; }
-
-/* QR Scanner */
-#posQRContainer {
-    position: relative;
-    width: 100%;
-    height: 240px;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 12px;
-}
-#posQRVideo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.qr-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.qr-frame {
-    width: 160px;
-    height: 160px;
-    border: 3px solid var(--gold-400);
-    border-radius: 12px;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-}
-.qr-loading, .qr-error {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-secondary);
-    color: var(--text-muted);
-}
+#posQRContainer { position: relative; width: 100%; height: 240px; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+#posQRVideo { width: 100%; height: 100%; object-fit: cover; }
+.qr-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; }
+.qr-frame { width: 160px; height: 160px; border: 3px solid var(--gold-400); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); }
+.qr-loading, .qr-error { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-secondary); color: var(--text-muted); }
 .qr-error i { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
-.spinner {
-    width: 32px; height: 32px;
-    border: 3px solid var(--border-color);
-    border-top-color: var(--gold-400);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 8px;
-}
+.spinner { width: 32px; height: 32px; border: 3px solid var(--border-color); border-top-color: var(--gold-400); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* Member Info */
-.tap-member-info {
-    text-align: center;
-    margin-bottom: 20px;
-}
-.tap-member-avatar {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: var(--olive-600);
-    margin: 0 auto 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 3px solid var(--gold-400);
-}
-.tap-member-avatar i { font-size: 32px; color: var(--gold-400); }
+.tap-member-info { text-align: center; }
 .tap-member-info h4 { color: var(--text-primary); margin-bottom: 4px; }
-.tap-member-info p { color: var(--text-muted); font-size: 13px; }
-
-.tap-saldo-display {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: 12px;
-    margin-bottom: 16px;
-}
-.tap-saldo-display span:first-child { color: var(--text-muted); font-size: 13px; }
-.tap-saldo-display span:last-child {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    color: var(--gold-400);
-}
-
-.tap-payment-summary {
-    background: var(--bg-secondary);
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-}
-.tap-summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    color: var(--text-muted);
-    font-size: 13px;
-}
+.tap-payment-summary { background: var(--bg-secondary); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; }
+.tap-summary-row { display: flex; justify-content: space-between; padding: 8px 0; color: var(--text-muted); font-size: 13px; }
 .tap-summary-row span:last-child { color: var(--text-primary); font-weight: 500; }
-.tap-summary-row.highlight {
-    border-top: 1px solid var(--border-color);
-    margin-top: 4px;
-    padding-top: 12px;
-}
-.tap-summary-row.highlight span:last-child {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    color: var(--gold-400);
-}
-
-.tap-warning {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: rgba(220, 53, 69, 0.15);
-    border: 1px solid var(--red-400);
-    border-radius: 8px;
-    margin-bottom: 16px;
-    color: var(--red-400);
-    font-size: 13px;
-}
-
-.tap-success-icon {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: var(--green-500);
-    margin: 0 auto 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+.tap-summary-row.highlight { border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 12px; }
+.tap-summary-row.highlight span:last-child { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gold-400); }
+.tap-warning { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(220, 53, 69, 0.15); border: 1px solid var(--red-400); border-radius: 8px; margin-bottom: 16px; color: var(--red-300); font-size: 13px; }
+.tap-success-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--green-500); margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; }
 .tap-success-icon i { font-size: 40px; color: white; }
-
-.produk-item:hover {
-    border-color: var(--gold-400) !important;
-    transform: translateY(-2px);
-}
-.produk-item.in-cart {
-    border-color: var(--gold-400) !important;
-    background: rgba(197, 164, 78, 0.1) !important;
-}
-.category-btn.active {
-    background: var(--gold-400) !important;
-    color: var(--bg-dark) !important;
-}
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Cart state
 let cart = [];
 let selectedAnggota = null;
-let tapAnggota = null;
+let pendingHutang = null; // {total, kekurangan}
 
-// Filter by category
-function filterKategori(btn, kategoriId) {
-    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    
-    document.querySelectorAll('.produk-item').forEach(item => {
-        if (!kategoriId || item.dataset.kategori == kategoriId) {
-            item.style.display = 'block';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
+function rp(n) { return 'Rp ' + (n || 0).toLocaleString('id-ID'); }
 
-// Search products
-function searchProduk(query) {
-    query = query.toLowerCase();
-    document.querySelectorAll('.produk-item').forEach(item => {
-        if (item.dataset.search.includes(query)) {
-            item.style.display = 'block';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
-
-// Add to cart
-function addToCart(id, nama, harga, stok) {
-    const existing = cart.find(c => c.id === id);
-    if (existing) {
-        if (existing.jumlah < stok) {
-            existing.jumlah++;
-        } else {
-            alert('Stok tidak mencukupi!');
-            return;
-        }
-    } else {
-        cart.push({ id, nama, harga, stok, jumlah: 1 });
-    }
+// ---------- Manual item entry ----------
+function addManualItem() {
+    const nama = (document.getElementById('itemNama').value || '').trim();
+    const harga = parseInt(document.getElementById('itemHarga').value || '0', 10);
+    const qty = parseInt(document.getElementById('itemQty').value || '1', 10);
+    if (!nama) { alert('Nama item wajib diisi'); document.getElementById('itemNama').focus(); return; }
+    if (!harga || harga <= 0) { alert('Harga harus lebih dari 0'); document.getElementById('itemHarga').focus(); return; }
+    if (!qty || qty <= 0) { alert('Qty minimal 1'); return; }
+    cart.push({ uid: Date.now() + Math.random(), nama, harga, jumlah: qty });
+    document.getElementById('itemNama').value = '';
+    document.getElementById('itemHarga').value = '';
+    document.getElementById('itemQty').value = '1';
+    document.getElementById('itemNama').focus();
     updateCartUI();
 }
 
-// Remove from cart
-function removeFromCart(id) {
-    cart = cart.filter(c => c.id !== id);
+function removeFromCart(uid) { cart = cart.filter(c => c.uid !== uid); updateCartUI(); }
+
+function updateQty(uid, delta) {
+    const item = cart.find(c => c.uid === uid);
+    if (item) { item.jumlah += delta; if (item.jumlah <= 0) return removeFromCart(uid); }
     updateCartUI();
 }
 
-// Update quantity
-function updateQty(id, delta) {
-    const item = cart.find(c => c.id === id);
-    if (item) {
-        item.jumlah += delta;
-        if (item.jumlah <= 0) {
-            removeFromCart(id);
-        } else if (item.jumlah > item.stok) {
-            item.jumlah = item.stok;
-            alert('Stok maksimal: ' + item.stok);
-        }
-    }
-    updateCartUI();
-}
+function cartTotal() { return cart.reduce((s, c) => s + c.harga * c.jumlah, 0); }
 
-// Update cart UI
 function updateCartUI() {
     const container = document.getElementById('cartItems');
     const emptyMsg = document.getElementById('cartEmpty');
-    const totalEl = document.getElementById('cartTotal');
-    const countEl = document.getElementById('cartCount');
     const btnBayar = document.getElementById('btnBayar');
-    
-    // Mark products in cart
-    document.querySelectorAll('.produk-item').forEach(item => {
-        item.classList.remove('in-cart');
-        if (cart.find(c => c.id == item.dataset.id)) {
-            item.classList.add('in-cart');
-        }
-    });
-    
+
+    container.querySelectorAll('.cart-item').forEach(el => el.remove());
+
     if (cart.length === 0) {
         emptyMsg.style.display = 'block';
-        container.querySelectorAll('.cart-item').forEach(el => el.remove());
-        totalEl.textContent = 'Rp 0';
-        countEl.textContent = '0';
+        document.getElementById('cartTotal').textContent = 'Rp 0';
+        document.getElementById('cartCount').textContent = '0';
         btnBayar.disabled = true;
         return;
     }
-    
     emptyMsg.style.display = 'none';
-    
-    let html = '';
-    let total = 0;
-    let count = 0;
-    
+
+    let html = '', total = 0, count = 0;
     cart.forEach(item => {
         const subtotal = item.harga * item.jumlah;
-        total += subtotal;
-        count += item.jumlah;
-        
+        total += subtotal; count += item.jumlah;
         html += `
-            <div class="cart-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
-                <div style="flex: 1;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${item.nama}</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Rp ${item.harga.toLocaleString('id-ID')} × ${item.jumlah}</div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.id}, -1)" style="padding: 4px 8px;">
-                        <i class="bi bi-dash"></i>
-                    </button>
-                    <span style="min-width: 24px; text-align: center; color: var(--text-primary);">${item.jumlah}</span>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.id}, 1)" style="padding: 4px 8px;">
-                        <i class="bi bi-plus"></i>
-                    </button>
-                </div>
-                <div style="text-align: right; min-width: 80px;">
-                    <div style="font-weight: 600; color: var(--gold-400);">Rp ${subtotal.toLocaleString('id-ID')}</div>
-                </div>
-                <button type="button" onclick="removeFromCart(${item.id})" style="background: none; border: none; color: var(--red-300); cursor: pointer; padding: 4px;">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+        <div class="cart-item" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
+            <div style="flex: 1;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${escapeHtml(item.nama)}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Rp ${item.harga.toLocaleString('id-ID')} × ${item.jumlah}</div>
             </div>
-        `;
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.uid}, -1)" style="padding: 4px 8px;"><i class="bi bi-dash"></i></button>
+                <span style="min-width: 24px; text-align: center; color: var(--text-primary);">${item.jumlah}</span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="updateQty(${item.uid}, 1)" style="padding: 4px 8px;"><i class="bi bi-plus"></i></button>
+            </div>
+            <div style="text-align: right; min-width: 80px;"><div style="font-weight: 600; color: var(--gold-400);">Rp ${subtotal.toLocaleString('id-ID')}</div></div>
+            <button type="button" onclick="removeFromCart(${item.uid})" style="background: none; border: none; color: var(--red-300); cursor: pointer; padding: 4px;"><i class="bi bi-x-lg"></i></button>
+        </div>`;
     });
-    
-    // Remove old items and add new
-    container.querySelectorAll('.cart-item').forEach(el => el.remove());
     container.insertAdjacentHTML('afterbegin', html);
-    
-    totalEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
-    countEl.textContent = count;
-    
-    // Enable pay button if member selected
+    document.getElementById('cartTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    document.getElementById('cartCount').textContent = count;
     btnBayar.disabled = !selectedAnggota || cart.length === 0;
 }
 
-// Clear cart
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 function clearCart() {
-    if (cart.length > 0 && confirm('Kosongkan keranjang?')) {
-        cart = [];
-        updateCartUI();
-    }
+    if (cart.length > 0 && confirm('Kosongkan keranjang?')) { cart = []; updateCartUI(); }
 }
 
-// ============================================================
-// Searchable Anggota Combobox
-// ============================================================
-function openAnggotaDropdown() {
-    document.getElementById('anggotaDropdown').style.display = 'block';
-    filterAnggotaDropdown();
-}
-
-function closeAnggotaDropdown() {
-    document.getElementById('anggotaDropdown').style.display = 'none';
-}
+// ---------- Anggota combobox ----------
+function openAnggotaDropdown() { document.getElementById('anggotaDropdown').style.display = 'block'; filterAnggotaDropdown(); }
+function closeAnggotaDropdown() { document.getElementById('anggotaDropdown').style.display = 'none'; }
 
 function filterAnggotaDropdown() {
     const q = (document.getElementById('anggotaSearch').value || '').toLowerCase().trim();
     const opts = document.querySelectorAll('#anggotaDropdown .anggota-option');
     let visible = 0;
     opts.forEach(opt => {
-        const search = opt.dataset.search || '';
-        // Always show the placeholder option only when query is empty
-        if (!opt.dataset.kartuId) {
-            opt.style.display = q ? 'none' : '';
-            return;
-        }
-        const show = !q || search.includes(q);
+        if (!opt.dataset.kartuId) { opt.style.display = q ? 'none' : ''; return; }
+        const show = !q || (opt.dataset.search || '').includes(q);
         opt.style.display = show ? '' : 'none';
         if (show) visible++;
     });
@@ -868,152 +425,117 @@ function filterAnggotaDropdown() {
 
 function selectAnggota(el) {
     const kartuId = el.dataset.kartuId;
-    const hidden = document.getElementById('selectAnggota');
+    document.getElementById('selectAnggota').value = kartuId;
     const search = document.getElementById('anggotaSearch');
     const info = document.getElementById('memberInfo');
-
-    hidden.value = kartuId;
-
     if (kartuId) {
         selectedAnggota = {
-            kartu_id: kartuId,
-            nama: el.dataset.nama,
-            pangkat: el.dataset.pangkat,
-            saldo: parseInt(el.dataset.saldo || 0, 10),
+            kartu_id: kartuId, nama: el.dataset.nama, pangkat: el.dataset.pangkat,
+            saldo: parseInt(el.dataset.saldo || 0, 10), hutang: parseInt(el.dataset.hutang || 0, 10),
         };
         search.value = el.dataset.nama + ' — ' + el.dataset.pangkat;
         info.style.display = 'block';
         document.getElementById('infoNama').textContent = selectedAnggota.nama;
         document.getElementById('infoPangkat').textContent = selectedAnggota.pangkat;
-        document.getElementById('infoSaldo').textContent = 'Rp ' + selectedAnggota.saldo.toLocaleString('id-ID');
+        document.getElementById('infoSaldo').textContent = rp(selectedAnggota.saldo);
+        const ih = document.getElementById('infoHutang');
+        if (selectedAnggota.hutang > 0) { ih.style.display = 'block'; ih.textContent = 'Hutang: ' + rp(selectedAnggota.hutang); }
+        else { ih.style.display = 'none'; }
     } else {
-        selectedAnggota = null;
-        search.value = '';
-        info.style.display = 'none';
+        selectedAnggota = null; search.value = ''; info.style.display = 'none';
     }
-
     closeAnggotaDropdown();
     updateCartUI();
 }
 
-// Pilih lewat kartu_id (dipakai dari TAP modal NFC/QR)
-function setSelectedAnggotaByKartuId(kartuId) {
-    const opt = document.querySelector(`#anggotaDropdown .anggota-option[data-kartu-id="${kartuId}"]`);
-    if (opt) {
-        selectAnggota(opt);
-        return true;
-    }
-    return false;
-}
-
-// Klik di luar combobox → tutup dropdown
 document.addEventListener('click', (e) => {
     const combo = document.querySelector('.anggota-combo');
-    if (combo && !combo.contains(e.target)) {
-        closeAnggotaDropdown();
-    }
+    if (combo && !combo.contains(e.target)) closeAnggotaDropdown();
 });
 
-// Reset search field kalau user mengetik tanpa memilih
 document.getElementById('anggotaSearch').addEventListener('blur', () => {
     setTimeout(() => {
         const hidden = document.getElementById('selectAnggota');
         const search = document.getElementById('anggotaSearch');
-        if (!hidden.value && search.value) {
-            // user typed but did not pick anything — clear field
-            search.value = '';
-        } else if (hidden.value && selectedAnggota) {
-            // restore canonical text
-            search.value = selectedAnggota.nama + ' — ' + selectedAnggota.pangkat;
-        }
+        if (!hidden.value && search.value) search.value = '';
+        else if (hidden.value && selectedAnggota) search.value = selectedAnggota.nama + ' — ' + selectedAnggota.pangkat;
     }, 200);
 });
 
-// Process payment (manual select)
-function prosesPayment() {
-    if (!selectedAnggota || cart.length === 0) return;
-    
-    const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
-    if (selectedAnggota.saldo < total) {
-        alert('Saldo tidak cukup! Saldo: Rp ' + selectedAnggota.saldo.toLocaleString('id-ID'));
-        return;
-    }
-    
-    if (!confirm(`Proses pembayaran Rp ${total.toLocaleString('id-ID')} untuk ${selectedAnggota.nama}?`)) return;
-    
-    // Call API
-    const items = cart.map(c => ({ produk_id: c.id, jumlah: c.jumlah }));
-    
-    fetch('/api/pembayaran/cart', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
-        },
-        body: JSON.stringify({
-            kartu_id: selectedAnggota.kartu_id,
-            items: items,
-            metode: 'Manual'
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            alert('Pembayaran berhasil!\nTrx: ' + data.data.trx_id + '\nSisa saldo: Rp ' + data.data.saldo_sesudah.toLocaleString('id-ID'));
-            location.reload();
-        } else {
-            alert('Gagal: ' + data.message);
-        }
-    })
-    .catch(err => alert('Error: ' + err.message));
+// ---------- Payment ----------
+function buildItemsPayload() {
+    return cart.map(c => ({ nama: c.nama, harga: c.harga, jumlah: c.jumlah }));
 }
 
-// TAP MODAL
-let posQRStream = null;
-let posQRAnimationFrame = null;
-let currentScanData = '';
+function sendPayment(allowHutang) {
+    return fetch('/api/pembayaran/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '') },
+        body: JSON.stringify({ kartu_id: selectedAnggota.kartu_id, items: buildItemsPayload(), metode: 'Manual', allow_hutang: !!allowHutang })
+    }).then(r => r.json().then(data => ({ status: r.status, data })));
+}
+
+function prosesPayment() {
+    if (!selectedAnggota || cart.length === 0) return;
+    const total = cartTotal();
+    if (!confirm(`Proses pembayaran ${rp(total)} untuk ${selectedAnggota.nama}?`)) return;
+
+    sendPayment(false).then(({ status, data }) => {
+        if (data.success) return showSuccess(data.data);
+        if (data.need_hutang) {
+            // Buka popup konfirmasi hutang
+            pendingHutang = { total: data.total, kekurangan: data.kekurangan, saldo: data.saldo };
+            document.getElementById('hutangNama').textContent = selectedAnggota.nama;
+            document.getElementById('hutangTotal').textContent = rp(data.total);
+            document.getElementById('hutangSaldo').textContent = rp(data.saldo);
+            document.getElementById('hutangKurang').textContent = rp(data.kekurangan);
+            document.getElementById('hutangModal').classList.add('active');
+        } else {
+            alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
+        }
+    }).catch(err => alert('Error: ' + err.message));
+}
+
+function closeHutangModal() { document.getElementById('hutangModal').classList.remove('active'); pendingHutang = null; }
+
+function confirmHutang() {
+    sendPayment(true).then(({ data }) => {
+        document.getElementById('hutangModal').classList.remove('active');
+        if (data.success) showSuccess(data.data, true);
+        else alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
+    }).catch(err => alert('Error: ' + err.message));
+}
+
+function showSuccess(d, isHutang) {
+    document.getElementById('successTitle').textContent = isHutang ? 'Tercatat sebagai Hutang' : 'Pembayaran Berhasil!';
+    let msg = 'Trx: ' + d.trx_id + ' | Sisa saldo: ' + rp(d.saldo_sesudah);
+    if (d.hutang_ditambah && d.hutang_ditambah > 0) msg += ' | Hutang +' + rp(d.hutang_ditambah) + ' (total ' + rp(d.hutang_total) + ')';
+    document.getElementById('successMessage').textContent = msg;
+    document.getElementById('successModal').classList.add('active');
+}
+
+// ---------- Tap modal (member select) ----------
+let posQRStream = null, posQRAnimationFrame = null;
 
 function showTapModal() {
-    if (cart.length === 0) {
-        alert('Keranjang masih kosong!');
-        return;
-    }
-    const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
-    document.getElementById('tapPreviewTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
-    
     document.getElementById('tapModal').classList.add('active');
     document.getElementById('tapStep1').style.display = 'block';
     document.getElementById('tapNFCInput').style.display = 'none';
     document.getElementById('tapQRScanner').style.display = 'none';
-    document.getElementById('tapStep2').style.display = 'none';
-    document.getElementById('tapSuccess').style.display = 'none';
-    tapAnggota = null;
-    currentScanData = '';
 }
-
-function closeTapModal() {
-    document.getElementById('tapModal').classList.remove('active');
-    stopPOSQRScanner();
-    tapAnggota = null;
-    currentScanData = '';
-}
-
+function closeTapModal() { document.getElementById('tapModal').classList.remove('active'); stopPOSQRScanner(); }
 function backToMethodSelect() {
     stopPOSQRScanner();
     document.getElementById('tapStep1').style.display = 'block';
     document.getElementById('tapNFCInput').style.display = 'none';
     document.getElementById('tapQRScanner').style.display = 'none';
-    document.getElementById('tapStep2').style.display = 'none';
-    currentScanData = '';
 }
-
 function showNFCInput() {
     document.getElementById('tapStep1').style.display = 'none';
     document.getElementById('tapNFCInput').style.display = 'block';
     document.getElementById('manualScan').value = '';
     document.getElementById('manualScan').focus();
 }
-
 function showQRScanner() {
     document.getElementById('tapStep1').style.display = 'none';
     document.getElementById('tapQRScanner').style.display = 'block';
@@ -1021,124 +543,72 @@ function showQRScanner() {
     startPOSQRScanner();
 }
 
-// QR Scanner
 async function startPOSQRScanner() {
     const video = document.getElementById('posQRVideo');
     const loading = document.getElementById('posQRLoading');
     const error = document.getElementById('posQRError');
-    
-    loading.style.display = 'flex';
-    error.style.display = 'none';
-    
+    loading.style.display = 'flex'; error.style.display = 'none';
     try {
-        posQRStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        });
-        video.srcObject = posQRStream;
-        await video.play();
-        loading.style.display = 'none';
-        scanPOSQRCode();
-    } catch (err) {
-        console.error('Camera error:', err);
-        loading.style.display = 'none';
-        error.style.display = 'flex';
-    }
+        posQRStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = posQRStream; await video.play();
+        loading.style.display = 'none'; scanPOSQRCode();
+    } catch (err) { loading.style.display = 'none'; error.style.display = 'flex'; }
 }
-
 function stopPOSQRScanner() {
-    if (posQRAnimationFrame) {
-        cancelAnimationFrame(posQRAnimationFrame);
-        posQRAnimationFrame = null;
-    }
-    if (posQRStream) {
-        posQRStream.getTracks().forEach(track => track.stop());
-        posQRStream = null;
-    }
+    if (posQRAnimationFrame) { cancelAnimationFrame(posQRAnimationFrame); posQRAnimationFrame = null; }
+    if (posQRStream) { posQRStream.getTracks().forEach(t => t.stop()); posQRStream = null; }
 }
-
 function scanPOSQRCode() {
     const video = document.getElementById('posQRVideo');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    
     function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert'
-            });
-            
-            if (code) {
-                stopPOSQRScanner();
-                currentScanData = code.data;
-                processTapScan(code.data, 'QR');
-                return;
-            }
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+            if (code) { stopPOSQRScanner(); processTapScan(code.data, 'QR'); return; }
         }
         posQRAnimationFrame = requestAnimationFrame(tick);
     }
     tick();
 }
-
 function processQRInput() {
     const val = document.getElementById('qrManualInput').value.trim();
-    if (val) {
-        stopPOSQRScanner();
-        currentScanData = val;
-        processTapScan(val, 'QR');
-    }
+    if (val) { stopPOSQRScanner(); processTapScan(val, 'QR'); }
 }
-
-// Process tap (find member)
 function processTap() {
     const scanData = document.getElementById('manualScan').value.trim();
-    if (!scanData) return;
-    currentScanData = scanData;
-    processTapScan(scanData, 'NFC');
+    if (scanData) processTapScan(scanData, 'NFC');
 }
-
 function processTapScan(scanData, metode) {
     fetch('/api/pembayaran/tap', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
-        },
-        body: JSON.stringify({ scan_data: scanData, items: [], metode: metode })
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '') },
+        body: JSON.stringify({ scan_data: scanData, metode: metode })
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success && data.data.ready_to_pay) {
-            tapAnggota = data.data.anggota;
-            const total = cart.reduce((sum, c) => sum + (c.harga * c.jumlah), 0);
-            const sisa = tapAnggota.saldo - total;
-            
-            document.getElementById('tapStep1').style.display = 'none';
-            document.getElementById('tapNFCInput').style.display = 'none';
-            document.getElementById('tapQRScanner').style.display = 'none';
-            document.getElementById('tapStep2').style.display = 'block';
-            
-            document.getElementById('tapNama').textContent = tapAnggota.nama;
-            document.getElementById('tapPangkat').textContent = tapAnggota.pangkat + ' — ' + (tapAnggota.jabatan || '');
-            document.getElementById('tapSaldo').textContent = 'Rp ' + tapAnggota.saldo.toLocaleString('id-ID');
-            document.getElementById('tapTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
-            document.getElementById('tapSisa').textContent = 'Rp ' + sisa.toLocaleString('id-ID');
-            
-            if (tapAnggota.saldo < total) {
-                document.getElementById('tapWarning').style.display = 'flex';
-                document.getElementById('tapSisaRow').style.display = 'none';
-                document.getElementById('tapConfirmBtn').disabled = true;
-                document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-exclamation-triangle"></i> Saldo Tidak Cukup';
+        if (data.success && data.data.anggota) {
+            const a = data.data.anggota;
+            // sync selection into combobox/state
+            const opt = document.querySelector(`#anggotaDropdown .anggota-option[data-kartu-id="${a.kartu_id}"]`);
+            if (opt) {
+                opt.dataset.saldo = a.saldo;
+                opt.dataset.hutang = a.hutang || 0;
+                selectAnggota(opt);
             } else {
-                document.getElementById('tapWarning').style.display = 'none';
-                document.getElementById('tapSisaRow').style.display = 'flex';
-                document.getElementById('tapConfirmBtn').disabled = false;
-                document.getElementById('tapConfirmBtn').innerHTML = '<i class="bi bi-check-circle-fill"></i> Bayar Sekarang';
+                selectedAnggota = { kartu_id: a.kartu_id, nama: a.nama, pangkat: a.pangkat, saldo: a.saldo, hutang: a.hutang || 0 };
+                document.getElementById('selectAnggota').value = a.kartu_id;
+                document.getElementById('anggotaSearch').value = a.nama + ' — ' + a.pangkat;
+                document.getElementById('memberInfo').style.display = 'block';
+                document.getElementById('infoNama').textContent = a.nama;
+                document.getElementById('infoPangkat').textContent = a.pangkat;
+                document.getElementById('infoSaldo').textContent = rp(a.saldo);
+                updateCartUI();
             }
+            closeTapModal();
         } else {
             alert(data.message || 'Kartu tidak ditemukan');
         }
@@ -1146,46 +616,9 @@ function processTapScan(scanData, metode) {
     .catch(err => alert('Error: ' + err.message));
 }
 
-// Confirm tap payment
-function confirmTapPayment() {
-    if (!tapAnggota || !currentScanData) return;
-    
-    const items = cart.map(c => ({ produk_id: c.id, jumlah: c.jumlah }));
-    
-    fetch('/api/pembayaran/tap', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + (localStorage.getItem('jwt_token') || '')
-        },
-        body: JSON.stringify({ scan_data: currentScanData, items: items, metode: 'NFC' })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('tapStep2').style.display = 'none';
-            document.getElementById('tapSuccess').style.display = 'block';
-            document.getElementById('successMessage').textContent = 
-                'Trx: ' + data.data.trx_id + ' | Sisa saldo: Rp ' + data.data.saldo_sesudah.toLocaleString('id-ID');
-        } else {
-            alert('Gagal: ' + data.message);
-        }
-    })
-    .catch(err => alert('Error: ' + err.message));
-}
-
-// Enter key handlers
-document.getElementById('manualScan').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') processTap();
-});
-document.getElementById('qrManualInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') processQRInput();
-});
-
-// Close with Escape
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeTapModal();
-});
+document.getElementById('manualScan').addEventListener('keypress', e => { if (e.key === 'Enter') processTap(); });
+document.getElementById('qrManualInput').addEventListener('keypress', e => { if (e.key === 'Enter') processQRInput(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTapModal(); closeHutangModal(); } });
 </script>
 <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 {% endblock %}

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kartu Ditemukan — Smart Card Poltekad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: linear-gradient(160deg, #1a2332 0%, #2d4a3e 60%, #1a3a2a 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 20px; color: #fff;
+        }
+        .wrap { width: 100%; max-width: 480px; }
+        .card {
+            background: rgba(255,255,255,0.06); backdrop-filter: blur(6px);
+            border: 1px solid rgba(218,165,32,0.3); border-radius: 20px;
+            padding: 32px 26px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .badge-found {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(218,165,32,0.18); color: #f0c860;
+            border: 1px solid rgba(218,165,32,0.5); padding: 7px 16px;
+            border-radius: 30px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px;
+            margin-bottom: 22px;
+        }
+        .icon-circle {
+            width: 84px; height: 84px; border-radius: 50%;
+            background: linear-gradient(135deg, #daa520, #b8860b);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; box-shadow: 0 8px 24px rgba(218,165,32,0.35);
+        }
+        .icon-circle i { font-size: 38px; color: #1a2332; }
+        h1 { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 1px; margin-bottom: 10px; }
+        .lead { color: rgba(255,255,255,0.78); font-size: 0.97rem; line-height: 1.6; margin-bottom: 24px; }
+        .ref-box {
+            background: rgba(0,0,0,0.25); border: 1px dashed rgba(218,165,32,0.4);
+            border-radius: 12px; padding: 14px; margin-bottom: 24px;
+        }
+        .ref-box .ref-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.55); }
+        .ref-box .ref-value { font-family: 'Consolas', monospace; font-size: 1.3rem; font-weight: 700; color: #f0c860; margin-top: 4px; }
+        .contact { text-align: left; background: rgba(255,255,255,0.05); border-radius: 14px; padding: 18px 20px; }
+        .contact h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; color: #f0c860; margin-bottom: 12px; }
+        .contact-row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .contact-row:last-child { border-bottom: none; }
+        .contact-row i { color: #daa520; font-size: 1.05rem; margin-top: 2px; width: 20px; text-align: center; flex-shrink: 0; }
+        .contact-row .c-label { font-size: 0.7rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+        .contact-row .c-value { font-size: 0.95rem; color: #fff; }
+        .contact-row a { color: #6ec1ff; text-decoration: none; }
+        .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 13px 18px; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
+            text-decoration: none; border: none; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-gold { background: linear-gradient(135deg, #daa520, #b8860b); color: #1a2332; }
+        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(218,165,32,0.35); }
+        .btn-outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); }
+        .footer-note { margin-top: 22px; font-size: 0.78rem; color: rgba(255,255,255,0.45); line-height: 1.5; }
+        .logo-mark { font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; color: #daa520; font-size: 0.95rem; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="card">
+            <div class="badge-found"><i class="bi bi-geo-alt-fill"></i> KARTU DITEMUKAN</div>
+            <div class="icon-circle"><i class="bi bi-patch-check-fill"></i></div>
+
+            <div class="logo-mark">SMART CARD · POLTEKAD</div>
+            <h1>Terima kasih sudah menemukan kartu ini</h1>
+
+            {% if terdaftar %}
+            <p class="lead">
+                Kartu ini milik anggota <strong>{{ kontak.satuan }}</strong>.
+                Mohon bantuannya untuk mengembalikan kartu ke satuan berikut.
+                Anda cukup menyebutkan kode kartu di bawah ini — tidak perlu data lain.
+            </p>
+            <div class="ref-box">
+                <div class="ref-label">Kode Kartu</div>
+                <div class="ref-value">{{ card_ref }}</div>
+            </div>
+            {% else %}
+            <p class="lead">
+                Kartu ini tampaknya milik anggota <strong>{{ kontak.satuan }}</strong>.
+                Jika Anda menemukannya, mohon kembalikan ke satuan berikut.
+            </p>
+            {% endif %}
+
+            <div class="contact">
+                <h3><i class="bi bi-building"></i> Kembalikan Ke</h3>
+                {% if kontak.satuan %}
+                <div class="contact-row">
+                    <i class="bi bi-shield-fill"></i>
+                    <div><div class="c-label">Satuan</div><div class="c-value">{{ kontak.satuan }}</div></div>
+                </div>
+                {% endif %}
+                {% if kontak.alamat %}
+                <div class="contact-row">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <div><div class="c-label">Alamat</div><div class="c-value">{{ kontak.alamat }}</div></div>
+                </div>
+                {% endif %}
+                {% if kontak.telepon %}
+                <div class="contact-row">
+                    <i class="bi bi-telephone-fill"></i>
+                    <div><div class="c-label">Telepon</div><div class="c-value"><a href="tel:{{ kontak.telepon }}">{{ kontak.telepon }}</a></div></div>
+                </div>
+                {% endif %}
+                {% if kontak.email %}
+                <div class="contact-row">
+                    <i class="bi bi-envelope-fill"></i>
+                    <div><div class="c-label">Email</div><div class="c-value"><a href="mailto:{{ kontak.email }}">{{ kontak.email }}</a></div></div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="actions">
+                {% if kontak.telepon %}
+                <a class="btn btn-gold" href="tel:{{ kontak.telepon }}"><i class="bi bi-telephone-fill"></i> Hubungi Satuan</a>
+                {% endif %}
+                {% if kontak.alamat %}
+                <a class="btn btn-outline" target="_blank" href="https://www.google.com/maps/search/?api=1&query={{ kontak.alamat|urlencode }}"><i class="bi bi-map"></i> Lihat Lokasi di Peta</a>
+                {% endif %}
+            </div>
+
+            <p class="footer-note">
+                Demi privasi pemilik, halaman ini sengaja tidak menampilkan identitas pribadi.
+                Petugas akan mencocokkan kode kartu saat pengembalian.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

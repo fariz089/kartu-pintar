@@ -7,6 +7,7 @@ Usage:
     python manage.py reset-db      # Drop + Create + Seed
     python manage.py create-user   # Create a new user
     python manage.py migrate-totp  # Add 2FA columns to existing users table
+    python manage.py migrate-hutang # Add hutang columns (anggota + transaksi)
     python manage.py reset-totp    # Reset 2FA for a specific user
 """
 
@@ -121,6 +122,38 @@ def migrate_totp():
         print("✅ Migrasi TOTP selesai.")
 
 
+def migrate_hutang():
+    """Add hutang columns + update Transaksi.jenis enum (idempotent)."""
+    app = create_app()
+    with app.app_context():
+        from sqlalchemy import text, inspect
+        insp = inspect(db.engine)
+        statements = []
+
+        anggota_cols = {c['name'] for c in insp.get_columns('anggota')}
+        if 'hutang' not in anggota_cols:
+            statements.append("ALTER TABLE anggota ADD COLUMN hutang BIGINT NOT NULL DEFAULT 0")
+
+        trx_cols = {c['name'] for c in insp.get_columns('transaksi')}
+        if 'hutang_ditambah' not in trx_cols:
+            statements.append("ALTER TABLE transaksi ADD COLUMN hutang_ditambah BIGINT NOT NULL DEFAULT 0")
+
+        # Perlebar enum jenis agar menerima 'Bayar Hutang'
+        statements.append(
+            "ALTER TABLE transaksi MODIFY COLUMN jenis "
+            "ENUM('Pembelian','Top Up','Bayar Hutang') NOT NULL"
+        )
+
+        with db.engine.begin() as conn:
+            for s in statements:
+                print("   →", s)
+                try:
+                    conn.execute(text(s))
+                except Exception as e:
+                    print(f"   ⚠️  Lewati (mungkin sudah diterapkan): {e}")
+        print("✅ Migrasi hutang selesai.")
+
+
 def reset_totp():
     """Reset 2FA for a specific user (so they re-enroll on next login)."""
     app = create_app()
@@ -152,6 +185,7 @@ if __name__ == '__main__':
         'reset-db': reset_db,
         'create-user': create_user,
         'migrate-totp': migrate_totp,
+        'migrate-hutang': migrate_hutang,
         'reset-totp': reset_totp,
         'help': show_help,
     }

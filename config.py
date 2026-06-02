@@ -56,6 +56,16 @@ class Config:
     # Interval update lokasi otomatis (dalam detik, default 1 menit)
     FINDMY_UPDATE_INTERVAL = int(os.environ.get('FINDMY_UPDATE_INTERVAL', 60))
 
+    # ============================================================
+    # Info kontak untuk halaman "Kartu Ditemukan" (publik, tanpa login)
+    # Ditampilkan ke penemu kartu agar bisa dikembalikan ke satuan.
+    # Atur via environment variable agar mudah diganti tanpa edit kode.
+    # ============================================================
+    LOST_CARD_SATUAN = os.environ.get('LOST_CARD_SATUAN', 'Politeknik Angkatan Darat (Poltekad)')
+    LOST_CARD_ALAMAT = os.environ.get('LOST_CARD_ALAMAT', 'Jl. Ksatrian, Pakis, Kabupaten Malang, Jawa Timur')
+    LOST_CARD_TELEPON = os.environ.get('LOST_CARD_TELEPON', '')
+    LOST_CARD_EMAIL = os.environ.get('LOST_CARD_EMAIL', '')
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

@@ -140,6 +140,9 @@ class Anggota(db.Model):
     # Saldo (e-wallet)
     saldo = db.Column(db.BigInteger, default=0, nullable=False)
 
+    # Hutang / utang kantin (akumulasi kekurangan pembayaran)
+    hutang = db.Column(db.BigInteger, default=0, nullable=False)
+
     # Kartu status & tracking
     status_kartu = db.Column(db.Enum('Aktif', 'Nonaktif', 'Hilang', 'Diblokir'), default='Aktif', nullable=False)
     lokasi_lat = db.Column(db.Float, nullable=True)
@@ -256,6 +259,7 @@ class Anggota(db.Model):
         }
         if include_saldo:
             data['saldo'] = self.saldo
+            data['hutang'] = self.hutang
         return data
 
     def to_identitas_dict(self):
@@ -284,11 +288,13 @@ class Transaksi(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     trx_id = db.Column(db.String(30), unique=True, nullable=False, index=True)
     anggota_id = db.Column(db.Integer, db.ForeignKey('anggota.id'), nullable=False, index=True)
-    jenis = db.Column(db.Enum('Pembelian', 'Top Up'), nullable=False)
+    jenis = db.Column(db.Enum('Pembelian', 'Top Up', 'Bayar Hutang'), nullable=False)
     keterangan = db.Column(db.String(200), nullable=True)
     nominal = db.Column(db.BigInteger, nullable=False)
     saldo_sebelum = db.Column(db.BigInteger, nullable=False)
     saldo_sesudah = db.Column(db.BigInteger, nullable=False)
+    # Bagian dari nominal yang ditutup dengan hutang (0 = lunas dari saldo)
+    hutang_ditambah = db.Column(db.BigInteger, default=0, nullable=False)
     status = db.Column(db.Enum('Berhasil', 'Gagal', 'Pending'), default='Pending', nullable=False)
     metode = db.Column(db.String(20), default='NFC')  # NFC, QR, Manual
     operator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
@@ -296,7 +302,6 @@ class Transaksi(db.Model):
 
     # Relationships
     operator = db.relationship('User', backref='transaksi_processed', foreign_keys=[operator_id])
-    items = db.relationship('TransaksiItem', backref='transaksi', lazy='dynamic', cascade='all, delete-orphan')
 
     def to_dict(self, include_items=False):
         data = {
@@ -310,12 +315,11 @@ class Transaksi(db.Model):
             'nominal': self.nominal,
             'saldo_sebelum': self.saldo_sebelum,
             'saldo_sesudah': self.saldo_sesudah,
+            'hutang_ditambah': self.hutang_ditambah or 0,
             'status': self.status,
             'metode': self.metode,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S'),
         }
-        if include_items:
-            data['items'] = [item.to_dict() for item in self.items.all()]
         return data
 
 
@@ -348,93 +352,6 @@ class LokasiHistory(db.Model):
             'scanned_by_user_id': self.scanned_by_user_id,
             'scanned_by_nama': self.scanned_by.nama if self.scanned_by else None,
             'waktu': self.waktu.strftime('%Y-%m-%d %H:%M:%S'),
-        }
-
-
-class KategoriProduk(db.Model):
-    """Product categories for supermarket-style system"""
-    __tablename__ = 'kategori_produk'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    nama = db.Column(db.String(50), unique=True, nullable=False)
-    icon = db.Column(db.String(50), default='bi-box')  # Bootstrap icon class
-    urutan = db.Column(db.Integer, default=0)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-
-    # Relationship
-    produk = db.relationship('Produk', backref='kategori_ref', lazy='dynamic')
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'nama': self.nama,
-            'icon': self.icon,
-            'urutan': self.urutan,
-            'is_active': self.is_active,
-            'produk_count': self.produk.filter_by(is_available=True).count(),
-        }
-
-
-class Produk(db.Model):
-    """Products for supermarket-style canteen"""
-    __tablename__ = 'produk'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    kode = db.Column(db.String(20), unique=True, nullable=False)  # Barcode or product code
-    nama = db.Column(db.String(100), nullable=False)
-    kategori_id = db.Column(db.Integer, db.ForeignKey('kategori_produk.id'), nullable=False)
-    harga = db.Column(db.BigInteger, nullable=False)
-    stok = db.Column(db.Integer, default=0, nullable=False)
-    stok_minimum = db.Column(db.Integer, default=5)  # Alert when below this
-    satuan = db.Column(db.String(20), default='pcs')  # pcs, botol, bungkus, etc
-    gambar = db.Column(db.String(255), default='/static/img/product-default.svg')
-    deskripsi = db.Column(db.Text, nullable=True)
-    is_available = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'kode': self.kode,
-            'nama': self.nama,
-            'kategori_id': self.kategori_id,
-            'kategori': self.kategori_ref.nama if self.kategori_ref else None,
-            'harga': self.harga,
-            'stok': self.stok,
-            'stok_minimum': self.stok_minimum,
-            'stok_rendah': self.stok <= self.stok_minimum,
-            'satuan': self.satuan,
-            'gambar': self.gambar,
-            'deskripsi': self.deskripsi,
-            'is_available': self.is_available and self.stok > 0,
-        }
-
-
-class TransaksiItem(db.Model):
-    """Individual items in a transaction (cart items)"""
-    __tablename__ = 'transaksi_item'
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    transaksi_id = db.Column(db.Integer, db.ForeignKey('transaksi.id'), nullable=False)
-    produk_id = db.Column(db.Integer, db.ForeignKey('produk.id'), nullable=False)
-    nama_produk = db.Column(db.String(100), nullable=False)  # Snapshot of product name
-    harga_satuan = db.Column(db.BigInteger, nullable=False)  # Snapshot of price at time of sale
-    jumlah = db.Column(db.Integer, nullable=False, default=1)
-    subtotal = db.Column(db.BigInteger, nullable=False)
-
-    # Relationships
-    produk = db.relationship('Produk', backref='transaksi_items')
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'produk_id': self.produk_id,
-            'nama_produk': self.nama_produk,
-            'harga_satuan': self.harga_satuan,
-            'jumlah': self.jumlah,
-            'subtotal': self.subtotal,
         }
 
 

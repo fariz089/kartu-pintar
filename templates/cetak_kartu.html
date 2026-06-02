@@ -4,287 +4,70 @@
 
 {% block extra_css %}
 <style>
-    /* ================================================
-       SCREEN STYLES — Preview & Controls
-       ================================================ */
-    .print-controls {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 24px;
-    }
-    .card-preview-area {
-        display: flex;
-        gap: 24px;
-        justify-content: center;
-        flex-wrap: wrap;
-        padding: 30px;
-        background: #e9ecef;
-        border-radius: 12px;
-        min-height: 300px;
-    }
-    .card-preview-label {
-        text-align: center;
-        font-size: 0.8em;
-        color: #6c757d;
-        margin-top: 8px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    .preview-wrapper {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
+    .print-controls { background: #fff; border: 1px solid #dee2e6; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .card-preview-area { display: flex; gap: 6mm; justify-content: flex-start; flex-wrap: wrap; padding: 12mm; background: #e9ecef; border-radius: 12px; min-height: 300px; align-content: flex-start; }
+    .card-preview-label { text-align: center; font-size: 0.8em; color: #6c757d; margin-top: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .preview-wrapper { display: flex; flex-direction: column; align-items: center; }
 
-    /* ================================================
-       CARD DESIGN — 5cm x 8cm (189px x 302px at 96dpi)
-       Print uses mm units for accuracy
-       ================================================ */
-    .kartu {
-        width: 50mm;
-        height: 80mm;
-        border-radius: 3mm;
-        overflow: hidden;
-        position: relative;
-        font-family: 'Segoe UI', system-ui, sans-serif;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        flex-shrink: 0;
-    }
+    /* member picker */
+    .member-search-box { position: relative; }
+    .member-list { max-height: 260px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; margin-top: 8px; }
+    .member-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #f1f1f1; cursor: pointer; }
+    .member-row:last-child { border-bottom: none; }
+    .member-row:hover { background: #f8f9fa; }
+    .member-row.selected { background: #e7f1ff; }
+    .member-row .badge-status { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; }
+    .selected-chip { display: inline-flex; align-items: center; gap: 6px; background: #1a2332; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; margin: 3px; }
+    .selected-chip button { background: none; border: none; color: #ffb3b3; cursor: pointer; padding: 0; line-height: 1; }
 
-    /* --- FRONT SIDE --- */
-    .kartu-depan {
-        background: linear-gradient(165deg, #1a2332 0%, #2d4a3e 40%, #1a3a2a 100%);
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-    }
-    .kartu-depan .kartu-header {
-        background: rgba(0,0,0,0.25);
-        padding: 2.5mm 3mm 2mm;
-        text-align: center;
-        border-bottom: 0.4mm solid rgba(218,165,32,0.6);
-    }
-    .kartu-depan .kartu-header .instansi {
-        font-size: 5pt;
-        font-weight: 700;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        color: #daa520;
-        margin: 0;
-        line-height: 1.3;
-    }
-    .kartu-depan .kartu-header .app-name {
-        font-size: 7pt;
-        font-weight: 800;
-        letter-spacing: 1.5px;
-        margin: 0.5mm 0 0;
-        color: #fff;
-    }
-    .kartu-depan .kartu-body {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 3mm 3mm 2mm;
-    }
-    .kartu-depan .foto-frame {
-        width: 22mm;
-        height: 28mm;
-        border-radius: 2mm;
-        border: 0.5mm solid rgba(218,165,32,0.5);
-        overflow: hidden;
-        background: #2a3a4a;
-        margin-bottom: 2mm;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .kartu-depan .foto-frame img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .kartu-depan .foto-frame .foto-placeholder {
-        font-size: 16pt;
-        color: rgba(255,255,255,0.3);
-    }
-    .kartu-depan .info-area {
-        text-align: center;
-        width: 100%;
-    }
-    .kartu-depan .nama {
-        font-size: 6.5pt;
-        font-weight: 800;
-        margin: 0;
-        line-height: 1.2;
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-    .kartu-depan .pangkat-nrp {
-        font-size: 5pt;
-        color: #daa520;
-        margin: 0.8mm 0 0;
-        font-weight: 600;
-    }
-    .kartu-depan .detail-row {
-        font-size: 4.5pt;
-        color: rgba(255,255,255,0.7);
-        margin: 0.5mm 0 0;
-        line-height: 1.3;
-    }
-    .kartu-depan .kartu-footer {
-        background: rgba(0,0,0,0.3);
-        padding: 1.5mm 3mm;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-top: 0.3mm solid rgba(218,165,32,0.3);
-    }
-    .kartu-depan .kartu-id {
-        font-size: 4.5pt;
-        font-weight: 700;
-        font-family: 'Consolas', 'Courier New', monospace;
-        color: rgba(255,255,255,0.8);
-        letter-spacing: 0.5px;
-    }
-    .kartu-depan .status-badge {
-        font-size: 4pt;
-        padding: 0.5mm 1.5mm;
-        border-radius: 1mm;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
+    .kartu { width: 50mm; height: 80mm; border-radius: 3mm; overflow: hidden; position: relative; font-family: 'Segoe UI', system-ui, sans-serif; box-shadow: 0 4px 20px rgba(0,0,0,0.15); flex-shrink: 0; }
+    .kartu-depan { background: linear-gradient(165deg, #1a2332 0%, #2d4a3e 40%, #1a3a2a 100%); color: #fff; display: flex; flex-direction: column; }
+    .kartu-depan .kartu-header { background: rgba(0,0,0,0.25); padding: 2.5mm 3mm 2mm; text-align: center; border-bottom: 0.4mm solid rgba(218,165,32,0.6); }
+    .kartu-depan .kartu-header .instansi { font-size: 5pt; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #daa520; margin: 0; line-height: 1.3; }
+    .kartu-depan .kartu-header .app-name { font-size: 7pt; font-weight: 800; letter-spacing: 1.5px; margin: 0.5mm 0 0; color: #fff; }
+    .kartu-depan .kartu-body { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 3mm 3mm 2mm; }
+    .kartu-depan .foto-frame { width: 22mm; height: 28mm; border-radius: 2mm; border: 0.5mm solid rgba(218,165,32,0.5); overflow: hidden; background: #2a3a4a; margin-bottom: 2mm; display: flex; align-items: center; justify-content: center; }
+    .kartu-depan .foto-frame img { width: 100%; height: 100%; object-fit: cover; }
+    .kartu-depan .foto-frame .foto-placeholder { font-size: 16pt; color: rgba(255,255,255,0.3); }
+    .kartu-depan .info-area { text-align: center; width: 100%; }
+    .kartu-depan .nama { font-size: 6.5pt; font-weight: 800; margin: 0; line-height: 1.2; color: #fff; text-transform: uppercase; letter-spacing: 0.3px; }
+    .kartu-depan .pangkat-nrp { font-size: 5pt; color: #daa520; margin: 0.8mm 0 0; font-weight: 600; }
+    .kartu-depan .detail-row { font-size: 4.5pt; color: rgba(255,255,255,0.7); margin: 0.5mm 0 0; line-height: 1.3; }
+    .kartu-depan .kartu-footer { background: rgba(0,0,0,0.3); padding: 1.5mm 3mm; display: flex; justify-content: space-between; align-items: center; border-top: 0.3mm solid rgba(218,165,32,0.3); }
+    .kartu-depan .kartu-id { font-size: 4.5pt; font-weight: 700; font-family: 'Consolas', 'Courier New', monospace; color: rgba(255,255,255,0.8); letter-spacing: 0.5px; }
+    .kartu-depan .status-badge { font-size: 4pt; padding: 0.5mm 1.5mm; border-radius: 1mm; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .status-aktif { background: #198754; color: #fff; }
     .status-hilang { background: #dc3545; color: #fff; }
     .status-nonaktif { background: #6c757d; color: #fff; }
+    .kartu-belakang { background: #fff; color: #333; display: flex; flex-direction: column; border: 0.3mm solid #ccc; }
+    .kartu-belakang .back-header { background: linear-gradient(165deg, #1a2332, #2d4a3e); padding: 2mm 3mm; text-align: center; color: #fff; }
+    .kartu-belakang .back-header h4 { font-size: 5.5pt; font-weight: 800; margin: 0; letter-spacing: 1px; text-transform: uppercase; }
+    .kartu-belakang .back-header small { font-size: 4pt; color: rgba(255,255,255,0.6); }
+    .kartu-belakang .qr-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3mm; }
+    .kartu-belakang .qr-area img, .kartu-belakang .qr-area .qr-image { width: 30mm !important; height: 30mm !important; }
+    .kartu-belakang .qr-label { font-size: 4.5pt; color: #6c757d; margin-top: 2mm; text-align: center; font-weight: 600; }
+    .kartu-belakang .back-info { padding: 2mm 3mm; border-top: 0.3mm solid #e9ecef; }
+    .kartu-belakang .back-info-row { display: flex; justify-content: space-between; font-size: 4pt; color: #6c757d; line-height: 1.5; }
+    .kartu-belakang .back-footer { background: #f8f9fa; padding: 1.5mm 3mm; text-align: center; border-top: 0.3mm solid #e9ecef; }
+    .kartu-belakang .back-footer small { font-size: 3.5pt; color: #adb5bd; }
+    .kartu-belakang .domain-text { font-size: 4pt; color: #0d6efd; font-weight: 600; }
+    .nfc-icon { position: absolute; top: 2mm; right: 2.5mm; width: 4mm; height: 4mm; opacity: 0.4; }
 
-    /* --- BACK SIDE --- */
-    .kartu-belakang {
-        background: #fff;
-        color: #333;
-        display: flex;
-        flex-direction: column;
-        border: 0.3mm solid #ccc;
-    }
-    .kartu-belakang .back-header {
-        background: linear-gradient(165deg, #1a2332, #2d4a3e);
-        padding: 2mm 3mm;
-        text-align: center;
-        color: #fff;
-    }
-    .kartu-belakang .back-header h4 {
-        font-size: 5.5pt;
-        font-weight: 800;
-        margin: 0;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-    }
-    .kartu-belakang .back-header small {
-        font-size: 4pt;
-        color: rgba(255,255,255,0.6);
-    }
-    .kartu-belakang .qr-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 3mm;
-    }
-    .kartu-belakang .qr-area canvas,
-    .kartu-belakang .qr-area img,
-    .kartu-belakang .qr-area .qr-image {
-        width: 30mm !important;
-        height: 30mm !important;
-    }
-    .kartu-belakang .qr-label {
-        font-size: 4.5pt;
-        color: #6c757d;
-        margin-top: 2mm;
-        text-align: center;
-        font-weight: 600;
-    }
-    .kartu-belakang .back-info {
-        padding: 2mm 3mm;
-        border-top: 0.3mm solid #e9ecef;
-    }
-    .kartu-belakang .back-info-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 4pt;
-        color: #6c757d;
-        line-height: 1.5;
-    }
-    .kartu-belakang .back-footer {
-        background: #f8f9fa;
-        padding: 1.5mm 3mm;
-        text-align: center;
-        border-top: 0.3mm solid #e9ecef;
-    }
-    .kartu-belakang .back-footer small {
-        font-size: 3.5pt;
-        color: #adb5bd;
-    }
-    .kartu-belakang .domain-text {
-        font-size: 4pt;
-        color: #0d6efd;
-        font-weight: 600;
-    }
+    /* On-screen: each member shows as a front+back pair */
+    .print-pair { display: flex; gap: 4mm; }
 
-    /* ================================================
-       NFC CHIP ICON on front
-       ================================================ */
-    .nfc-icon {
-        position: absolute;
-        top: 2mm;
-        right: 2.5mm;
-        width: 4mm;
-        height: 4mm;
-        opacity: 0.4;
-    }
-
-    /* ================================================
-       PRINT STYLES — exact sizing for sticker print
-       ================================================ */
     @media print {
-        /* Hide everything except cards */
         body * { visibility: hidden; }
         .print-area, .print-area * { visibility: visible; }
-        .print-area {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
+        .print-area { position: absolute; top: 0; left: 0; width: 100%; }
         .no-print { display: none !important; }
-        .card-preview-area {
-            background: none;
-            padding: 0;
-            box-shadow: none;
-        }
+        .card-preview-area { background: none; padding: 0; box-shadow: none; gap: 4mm; }
         .card-preview-label { display: none; }
-        .kartu {
-            box-shadow: none;
-            page-break-inside: avoid;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            color-adjust: exact;
-        }
-        /* Print layout: front and back side by side */
-        .print-pair {
-            display: flex;
-            gap: 5mm;
-            margin-bottom: 5mm;
-            page-break-inside: avoid;
-        }
-        @page {
-            size: A4;
-            margin: 10mm;
-        }
+        .kartu { box-shadow: none; page-break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+        .print-pair { page-break-inside: avoid; }
+        @page { size: A4; margin: 8mm; }
+        /* paper size overrides set via body class */
+        body.paper-letter @page { size: letter; }
     }
 </style>
 {% endblock %}
@@ -293,262 +76,223 @@
 <div class="page-header d-flex justify-content-between align-items-center no-print">
     <div>
         <h2><i class="bi bi-printer-fill"></i> Cetak Stiker Kartu</h2>
-        <p class="text-muted mb-0">Preview & cetak kartu anggota (5cm × 8cm) — depan & belakang</p>
+        <p class="text-muted mb-0">Cari & pilih beberapa anggota — kartu disusun otomatis dalam satu kertas (depan & belakang)</p>
     </div>
 </div>
 
 <!-- CONTROLS -->
 <div class="print-controls no-print">
-    <div class="row align-items-end">
+    <div class="row">
+        <div class="col-md-7">
+            <label class="form-label fw-bold">Cari & Pilih Anggota</label>
+            <div class="member-search-box">
+                <input type="text" id="memberSearch" class="form-control" placeholder="Ketik nama / NRP / pangkat..." onkeyup="renderMemberList()">
+            </div>
+            <div class="member-list" id="memberList"></div>
+            <div class="mt-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="selectAllVisible()"><i class="bi bi-check2-all"></i> Pilih semua hasil</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="selectAllActive()"><i class="bi bi-people"></i> Semua anggota aktif</button>
+                <button class="btn btn-outline-danger btn-sm" onclick="clearSelection()"><i class="bi bi-x-circle"></i> Kosongkan</button>
+            </div>
+        </div>
         <div class="col-md-5">
-            <label class="form-label fw-bold">Pilih Anggota</label>
-            <select id="selectAnggota" class="form-select">
-                <option value="">— Pilih anggota untuk dicetak —</option>
-                {% for a in anggota_data %}
-                <option value="{{ a.id }}"
-                    data-nama="{{ a.nama }}"
-                    data-pangkat="{{ a.pangkat }}"
-                    data-nrp="{{ a.nrp }}"
-                    data-satuan="{{ a.satuan }}"
-                    data-jabatan="{{ a.jabatan or '' }}"
-                    data-jurusan="{{ a.jurusan or '' }}"
-                    data-gol="{{ a.golongan_darah or '-' }}"
-                    data-foto="{{ a.foto or '/static/img/avatar-default.svg' }}"
-                    data-status="{{ a.status_kartu }}"
-                    data-nfc="{{ a.nfc_uid or '' }}"
-                    data-qr="{{ a.qr_data or a.id }}"
-                    data-mili="{{ a.mili_id or '' }}"
-                >
-                    {{ a.pangkat }} {{ a.nama }} ({{ a.id }})
-                </option>
-                {% endfor %}
+            <label class="form-label fw-bold">Ukuran Kertas</label>
+            <select id="paperSize" class="form-select mb-3" onchange="applyPaperSize()">
+                <option value="A4" selected>A4 (210 × 297 mm)</option>
+                <option value="letter">Letter (216 × 279 mm)</option>
+                <option value="folio">F4 / Folio (215 × 330 mm)</option>
             </select>
-        </div>
-        <div class="col-md-3">
-            <label class="form-label fw-bold">Jumlah Cetak</label>
-            <select id="selectJumlah" class="form-select">
-                <option value="1">1 kartu</option>
-                <option value="2">2 kartu</option>
-                <option value="4">4 kartu</option>
-                <option value="6">6 kartu</option>
+            <label class="form-label fw-bold">Tampilkan Sisi</label>
+            <select id="sideMode" class="form-select mb-3" onchange="generatePreview()">
+                <option value="both" selected>Depan & Belakang</option>
+                <option value="front">Hanya Depan</option>
+                <option value="back">Hanya Belakang</option>
             </select>
-        </div>
-        <div class="col-md-4 d-flex gap-2">
-            <button class="btn btn-primary flex-fill" onclick="generatePreview()">
-                <i class="bi bi-eye"></i> Preview
-            </button>
-            <button class="btn btn-success flex-fill" onclick="window.print()">
-                <i class="bi bi-printer"></i> Cetak
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary flex-fill" onclick="generatePreview()"><i class="bi bi-eye"></i> Preview</button>
+                <button class="btn btn-success flex-fill" onclick="doPrint()"><i class="bi bi-printer"></i> Cetak</button>
+            </div>
         </div>
     </div>
 
-    <!-- Batch print -->
     <div class="mt-3">
-        <button class="btn btn-outline-primary btn-sm" onclick="generateAllCards()">
-            <i class="bi bi-people"></i> Cetak Semua Anggota Aktif
-        </button>
-        <small class="text-muted ms-2">Akan generate semua kartu anggota aktif sekaligus</small>
+        <strong class="text-muted">Dipilih (<span id="selCount">0</span>):</strong>
+        <div id="selectedChips" class="mt-1"></div>
     </div>
 </div>
 
 <!-- PREVIEW / PRINT AREA -->
 <div class="print-area" id="printArea">
     <div class="card-preview-area" id="previewArea">
-        <div class="text-center text-muted py-5 no-print" id="emptyState">
+        <div class="text-center text-muted py-5 no-print" id="emptyState" style="width: 100%;">
             <i class="bi bi-credit-card-2-front" style="font-size: 3em; opacity: 0.3;"></i>
-            <p class="mt-2">Pilih anggota dan klik Preview untuk melihat kartu</p>
+            <p class="mt-2">Pilih anggota lalu klik Preview untuk menyusun kartu di kertas</p>
         </div>
     </div>
 </div>
 
-<!-- QR Code di-generate server-side via /api/qrcode. Zero JS dependency. -->
-
 <script>
 const DOMAIN = 'http://smartcard.poltekkad.my.id';
 
-function createCardFront(data) {
-    const statusClass = {
-        'Aktif': 'status-aktif',
-        'Hilang': 'status-hilang',
-        'Nonaktif': 'status-nonaktif',
-        'Diblokir': 'status-nonaktif',
-    }[data.status] || 'status-nonaktif';
+// All members from server
+const ALL_MEMBERS = [
+    {% for a in anggota_data %}
+    {
+        id: {{ a.id|tojson }},
+        nama: {{ (a.nama or '')|tojson }},
+        pangkat: {{ (a.pangkat or '')|tojson }},
+        nrp: {{ (a.nrp or '')|tojson }},
+        satuan: {{ (a.satuan or '')|tojson }},
+        jabatan: {{ (a.jabatan or '')|tojson }},
+        jurusan: {{ (a.jurusan or '')|tojson }},
+        gol: {{ (a.golongan_darah or '-')|tojson }},
+        foto: {{ (a.foto or '/static/img/avatar-default.svg')|tojson }},
+        status: {{ (a.status_kartu or '')|tojson }},
+        nfc: {{ (a.nfc_uid or '')|tojson }},
+        qr: {{ (a.qr_data or a.id)|tojson }},
+        mili: {{ (a.mili_id or '')|tojson }}
+    },
+    {% endfor %}
+];
 
-    const fotoHTML = data.foto && data.foto !== '/static/img/avatar-default.svg'
-        ? `<img src="${data.foto}" alt="Foto">`
-        : `<div class="foto-placeholder">👤</div>`;
+let selectedIds = new Set();
 
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s==null?'':s; return d.innerHTML; }
+
+function statusClassName(st){
+    return ({ 'Aktif':'status-aktif','Hilang':'status-hilang','Nonaktif':'status-nonaktif','Diblokir':'status-nonaktif' })[st] || 'status-nonaktif';
+}
+
+function renderMemberList(){
+    const q = (document.getElementById('memberSearch').value || '').toLowerCase().trim();
+    const list = document.getElementById('memberList');
+    const filtered = ALL_MEMBERS.filter(m => {
+        if(!q) return true;
+        return (m.nama+' '+m.nrp+' '+m.pangkat+' '+m.id).toLowerCase().includes(q);
+    });
+    if(filtered.length === 0){ list.innerHTML = '<div class="member-row text-muted">Tidak ada hasil</div>'; return; }
+    list.innerHTML = filtered.map(m => `
+        <div class="member-row ${selectedIds.has(m.id)?'selected':''}" onclick="toggleMember(${JSON.stringify(m.id)})">
+            <input type="checkbox" ${selectedIds.has(m.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleMember(${JSON.stringify(m.id)})">
+            <div style="flex:1;">
+                <div style="font-weight:600;">${escapeHtml(m.pangkat)} ${escapeHtml(m.nama)}</div>
+                <div style="font-size:0.8em;color:#6c757d;">NRP ${escapeHtml(m.nrp)} · ${escapeHtml(m.id)}</div>
+            </div>
+            <span class="badge-status ${statusClassName(m.status)}">${escapeHtml(m.status)}</span>
+        </div>`).join('');
+}
+
+function toggleMember(id){
+    if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    renderMemberList(); renderChips();
+}
+function selectAllVisible(){
+    const q = (document.getElementById('memberSearch').value || '').toLowerCase().trim();
+    ALL_MEMBERS.forEach(m => { if(!q || (m.nama+' '+m.nrp+' '+m.pangkat+' '+m.id).toLowerCase().includes(q)) selectedIds.add(m.id); });
+    renderMemberList(); renderChips();
+}
+function selectAllActive(){
+    ALL_MEMBERS.forEach(m => { if(m.status === 'Aktif') selectedIds.add(m.id); });
+    renderMemberList(); renderChips();
+}
+function clearSelection(){ selectedIds.clear(); renderMemberList(); renderChips(); }
+
+function renderChips(){
+    document.getElementById('selCount').textContent = selectedIds.size;
+    const wrap = document.getElementById('selectedChips');
+    const chosen = ALL_MEMBERS.filter(m => selectedIds.has(m.id));
+    wrap.innerHTML = chosen.map(m => `
+        <span class="selected-chip">${escapeHtml(m.nama)}
+            <button onclick="toggleMember(${JSON.stringify(m.id)})"><i class="bi bi-x"></i></button>
+        </span>`).join('') || '<span class="text-muted">Belum ada anggota dipilih</span>';
+}
+
+function applyPaperSize(){
+    const size = document.getElementById('paperSize').value;
+    let styleEl = document.getElementById('dynamicPageStyle');
+    if(!styleEl){ styleEl = document.createElement('style'); styleEl.id = 'dynamicPageStyle'; document.head.appendChild(styleEl); }
+    const sizeMap = { 'A4':'A4', 'letter':'letter', 'folio':'215mm 330mm' };
+    styleEl.textContent = `@media print { @page { size: ${sizeMap[size]}; margin: 8mm; } }`;
+}
+
+function createCardFront(d){
+    const fotoHTML = d.foto && d.foto !== '/static/img/avatar-default.svg'
+        ? `<img src="${d.foto}" alt="Foto">` : `<div class="foto-placeholder">👤</div>`;
     return `
     <div class="kartu kartu-depan">
         <svg class="nfc-icon" viewBox="0 0 24 24" fill="white">
-            <path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/>
-            <path d="M12 8.5c-1.38 0-2.5 1.12-2.5 2.5 0 .98.56 1.83 1.38 2.24L12 18l1.12-4.76c.82-.41 1.38-1.26 1.38-2.24 0-1.38-1.12-2.5-2.5-2.5z" opacity="0"/>
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16z"/>
             <circle cx="12" cy="8" r="1.5" fill="none" stroke="white" stroke-width="0.7"/>
             <path d="M9 6.5a4.5 4.5 0 0 1 6 0" fill="none" stroke="white" stroke-width="0.7" stroke-linecap="round"/>
             <path d="M7.5 5a7 7 0 0 1 9 0" fill="none" stroke="white" stroke-width="0.7" stroke-linecap="round"/>
         </svg>
-        <div class="kartu-header">
-            <p class="instansi">TNI Angkatan Darat</p>
-            <p class="app-name">SMART CARD</p>
-        </div>
+        <div class="kartu-header"><p class="instansi">TNI Angkatan Darat</p><p class="app-name">SMART CARD</p></div>
         <div class="kartu-body">
             <div class="foto-frame">${fotoHTML}</div>
             <div class="info-area">
-                <p class="nama">${data.nama}</p>
-                <p class="pangkat-nrp">${data.pangkat} · NRP ${data.nrp}</p>
-                <p class="detail-row">${data.satuan}${data.jabatan ? ' — ' + data.jabatan : ''}</p>
-                ${data.jurusan ? `<p class="detail-row">${data.jurusan}</p>` : ''}
-                <p class="detail-row">Gol. Darah: ${data.gol}</p>
+                <p class="nama">${escapeHtml(d.nama)}</p>
+                <p class="pangkat-nrp">${escapeHtml(d.pangkat)} · NRP ${escapeHtml(d.nrp)}</p>
+                <p class="detail-row">${escapeHtml(d.satuan)}${d.jabatan ? ' — ' + escapeHtml(d.jabatan) : ''}</p>
+                ${d.jurusan ? `<p class="detail-row">${escapeHtml(d.jurusan)}</p>` : ''}
+                <p class="detail-row">Gol. Darah: ${escapeHtml(d.gol)}</p>
             </div>
         </div>
         <div class="kartu-footer">
-            <span class="kartu-id">${data.id}</span>
-            <span class="status-badge ${statusClass}">${data.status}</span>
+            <span class="kartu-id">${escapeHtml(d.id)}</span>
+            <span class="status-badge ${statusClassName(d.status)}">${escapeHtml(d.status)}</span>
         </div>
     </div>`;
 }
 
-function createCardBack(data) {
-    // URL yang di-encode ke dalam QR:
-    // - Kalau anggota sudah punya MiLi Card ID → pakai URL MiLi (bisa di-scan MiLi app)
-    // - Kalau belum → fallback ke URL internal SmartCard
-    const hasMili = data.mili && String(data.mili).trim().length > 0;
-    const qrUrl = hasMili
-        ? `https://micard.mymili.com/info/${String(data.mili).trim()}`
-        : `${DOMAIN}/scan/result/${data.qr || data.id}`;
-
-    const qrLabel = hasMili
-        ? 'Scan dengan MiLi app atau kamera'
-        : 'Scan untuk verifikasi identitas';
-
-    // QR di-generate server-side (endpoint /api/qrcode return SVG).
-    // Keuntungan: vector (crisp saat print), tidak tergantung CDN library JS.
+function createCardBack(d){
+    const hasMili = d.mili && String(d.mili).trim().length > 0;
+    const qrUrl = hasMili ? `https://micard.mymili.com/info/${String(d.mili).trim()}` : `${DOMAIN}/scan/result/${d.qr || d.id}`;
+    const qrLabel = hasMili ? 'Scan dengan MiLi app atau kamera' : 'Scan untuk verifikasi identitas';
     const qrImgSrc = `/api/qrcode?data=${encodeURIComponent(qrUrl)}`;
-
     return `
     <div class="kartu kartu-belakang">
-        <div class="back-header">
-            <h4>Smart Card</h4>
-            <small>Politeknik Angkatan Darat</small>
-        </div>
-        <div class="qr-area">
-            <img src="${qrImgSrc}" alt="QR Code" class="qr-image">
-            <div class="qr-label">${qrLabel}</div>
-        </div>
+        <div class="back-header"><h4>Smart Card</h4><small>Politeknik Angkatan Darat</small></div>
+        <div class="qr-area"><img src="${qrImgSrc}" alt="QR Code" class="qr-image"><div class="qr-label">${qrLabel}</div></div>
         <div class="back-info">
-            <div class="back-info-row">
-                <span>ID</span>
-                <span style="font-family:monospace;font-weight:700;">${data.id}</span>
-            </div>
-            ${data.nfc ? `<div class="back-info-row"><span>NFC</span><span style="font-family:monospace;">${data.nfc}</span></div>` : ''}
-            <div class="back-info-row">
-                <span>Domain</span>
-                <span class="domain-text">smartcard.poltekkad.my.id</span>
-            </div>
+            <div class="back-info-row"><span>ID</span><span style="font-family:monospace;font-weight:700;">${escapeHtml(d.id)}</span></div>
+            ${d.nfc ? `<div class="back-info-row"><span>NFC</span><span style="font-family:monospace;">${escapeHtml(d.nfc)}</span></div>` : ''}
+            <div class="back-info-row"><span>Domain</span><span class="domain-text">smartcard.poltekkad.my.id</span></div>
         </div>
-        <div class="back-footer">
-            <small>Kartu ini milik Poltekad. Jika ditemukan harap dikembalikan.</small>
-        </div>
+        <div class="back-footer"><small>Kartu ini milik Poltekad. Jika ditemukan harap dikembalikan.</small></div>
     </div>`;
 }
 
-function getSelectedData() {
-    const sel = document.getElementById('selectAnggota');
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) return null;
-    return {
-        id: opt.value,
-        nama: opt.dataset.nama,
-        pangkat: opt.dataset.pangkat,
-        nrp: opt.dataset.nrp,
-        satuan: opt.dataset.satuan,
-        jabatan: opt.dataset.jabatan,
-        jurusan: opt.dataset.jurusan,
-        gol: opt.dataset.gol,
-        foto: opt.dataset.foto,
-        status: opt.dataset.status,
-        nfc: opt.dataset.nfc,
-        qr: opt.dataset.qr,
-        mili: opt.dataset.mili,
-    };
-}
-
-function generatePreview() {
-    const data = getSelectedData();
-    if (!data) {
-        alert('Pilih anggota terlebih dahulu!');
+function generatePreview(){
+    const chosen = ALL_MEMBERS.filter(m => selectedIds.has(m.id));
+    const area = document.getElementById('previewArea');
+    if(chosen.length === 0){
+        area.innerHTML = '<div class="text-center text-muted py-5 no-print" style="width:100%;"><i class="bi bi-credit-card-2-front" style="font-size:3em;opacity:0.3;"></i><p class="mt-2">Pilih minimal satu anggota</p></div>';
         return;
     }
-
-    const jumlah = parseInt(document.getElementById('selectJumlah').value);
-    const area = document.getElementById('previewArea');
-
+    const sideMode = document.getElementById('sideMode').value;
     let html = '';
-    for (let i = 0; i < jumlah; i++) {
-        html += `
-        <div class="print-pair">
-            <div class="preview-wrapper">
-                ${createCardFront(data)}
-                <div class="card-preview-label no-print">Depan</div>
-            </div>
-            <div class="preview-wrapper">
-                ${createCardBack(data)}
-                <div class="card-preview-label no-print">Belakang</div>
-            </div>
-        </div>`;
-    }
-
+    chosen.forEach(d => {
+        if(sideMode === 'both'){
+            html += `<div class="preview-wrapper"><div class="print-pair">${createCardFront(d)}${createCardBack(d)}</div><div class="card-preview-label no-print">${escapeHtml(d.nama)}</div></div>`;
+        } else if(sideMode === 'front'){
+            html += `<div class="preview-wrapper">${createCardFront(d)}<div class="card-preview-label no-print">${escapeHtml(d.nama)} — Depan</div></div>`;
+        } else {
+            html += `<div class="preview-wrapper">${createCardBack(d)}<div class="card-preview-label no-print">${escapeHtml(d.nama)} — Belakang</div></div>`;
+        }
+    });
     area.innerHTML = html;
-    // QR di-render otomatis oleh browser saat load <img src="/api/qrcode?...">
 }
 
-function generateAllCards() {
-    const sel = document.getElementById('selectAnggota');
-    const area = document.getElementById('previewArea');
-
-    let html = '';
-    for (let i = 1; i < sel.options.length; i++) {
-        const opt = sel.options[i];
-        // Only active cards
-        if (opt.dataset.status !== 'Aktif') continue;
-
-        const data = {
-            id: opt.value,
-            nama: opt.dataset.nama,
-            pangkat: opt.dataset.pangkat,
-            nrp: opt.dataset.nrp,
-            satuan: opt.dataset.satuan,
-            jabatan: opt.dataset.jabatan,
-            jurusan: opt.dataset.jurusan,
-            gol: opt.dataset.gol,
-            foto: opt.dataset.foto,
-            status: opt.dataset.status,
-            nfc: opt.dataset.nfc,
-            qr: opt.dataset.qr,
-            mili: opt.dataset.mili,
-        };
-
-        html += `
-        <div class="print-pair">
-            <div class="preview-wrapper">
-                ${createCardFront(data)}
-                <div class="card-preview-label no-print">Depan</div>
-            </div>
-            <div class="preview-wrapper">
-                ${createCardBack(data)}
-                <div class="card-preview-label no-print">Belakang</div>
-            </div>
-        </div>`;
-    }
-
-    if (!html) {
-        alert('Tidak ada anggota aktif!');
-        return;
-    }
-
-    area.innerHTML = html;
-    // QR di-render otomatis oleh browser saat load <img src="/api/qrcode?...">
+function doPrint(){
+    if(selectedIds.size === 0){ alert('Pilih minimal satu anggota dulu'); return; }
+    generatePreview();
+    applyPaperSize();
+    setTimeout(() => window.print(), 300); // beri waktu QR <img> termuat
 }
+
+// init
+renderMemberList();
+renderChips();
+applyPaperSize();
 </script>
 {% endblock %}
